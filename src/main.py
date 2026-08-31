@@ -19,16 +19,16 @@ LOTE_BUFFER = 10_000        # cuantas lineas junto antes de mandarlas al archivo
 
 def _alfa(dt_s, tau_s):
     """me da la fraccion que avanza una magnitud hacia su objetivo en cada tick.
-
-    seria el 1 - exp(-dt/tau) de siempre pero no puedo importar math, asi que
-    lo dejo como division y queda igual, el valor se va acercando de a poco y
-    nunca llega de golpe. si tau es chico responde mas rapido.
+    no puedo importar math, el valor se va acercando de a poco y
+    nunca llega de golpe. si tau es chico responde más rapido.
     """
     return dt_s / (tau_s + dt_s)
 
 
 class Faja:
-    """faja transportadora, la vibracion y la corriente van siguiendo a la carga."""
+    """faja transportadora, la vibracion y la corriente van siguiendo a la carga.
+    a veces está andando, a veces detenida. Cuando anda, mientras más material lleva, 
+    más vibra y más corriente consume. Cuando se detiene, todo baja a cero (rápido, pero no de golpe)."""
 
     VIB_VACIO, VIB_PLENA = 1.2, 6.5      # mm/s
     CUR_VACIO, CUR_PLENA = 18.0, 95.0    # A
@@ -94,9 +94,9 @@ class Faja:
 
 
 class Grua:
-    """grua sts, hace el ciclo de izar, trasladar y bajar.
-
-    el peso lo fijo cuando toma la carga y no lo vuelvo a tocar hasta que la suelta.
+    """grua sts,
+    da vueltas en un ciclo fijo — espera, levanta, traslada, baja, espera otra vez.
+    Cuando agarra un contenedor le sortea un peso, y ese peso no cambia hasta que lo suelta
     """
 
     # estado -> (cuantos ticks dura, corriente a la que tiende en A)
@@ -163,7 +163,9 @@ class Grua:
 
 
 class Bascula:
-    """bascula de la entrada, mientras el camion esta encima el peso se queda quieto."""
+    """bascula de la entrada, mientras el camion esta encima el peso se queda quieto.
+    alterna entre "hay camión" y "no hay camión". Con camión encima marca siempre casi lo mismo, 
+    moviéndose apenas décimas."""
 
     def __init__(self, sensor_id, rng):
         self.sensor_id = sensor_id
@@ -200,7 +202,7 @@ class Bascula:
         ]
 
 
-def crear_activos(rng):
+def crear_activos(rng): #arma el equipo
     """los equipos del sitio 3, son 6 fajas, 2 gruas sts y 1 bascula."""
     activos = [Faja(f"FAJA_S3_C{i}", rng) for i in range(1, 7)]
     activos.append(Grua("GRUA_S3_STS01", rng))
@@ -210,6 +212,12 @@ def crear_activos(rng):
 
 
 def worker_shard(wid, n_eventos, carpeta, semilla):
+        """1. calcula qué hora es en el reloj inventado
+        2. le pregunta a los 9 equipos qué marcan
+        3. guarda cada respuesta en una lista
+        4. cuando junta 10.000, las escribe al archivo de una
+        5. avanza el reloj 15 segundos
+        6. repite hasta llegar a 100.000 lecturas"""
     """genera n_eventos y me los deja escritos en carpeta/part-<wid>.jsonl."""
     rng = random.Random(semilla + wid)          # rng mio, nunca el random global
     activos = crear_activos(rng)
@@ -267,6 +275,8 @@ def worker_shard(wid, n_eventos, carpeta, semilla):
 
 
 if __name__ == "__main__":
+    """crea la carpeta, corre un trabajador, mide cuánto demoró e imprime cuántos eventos por 
+    segundo logró.  Medición de referencia antes de lanzar varios trabajadores en paralelo."""
     carpeta = Path("data/raw")
     carpeta.mkdir(parents=True, exist_ok=True)
 
