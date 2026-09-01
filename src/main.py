@@ -275,14 +275,19 @@ def worker_shard(wid, n_eventos, carpeta, semilla):
 
 
 if __name__ == "__main__":
-    """crea la carpeta, corre un trabajador, mide cuánto demoró e imprime cuántos eventos por 
+    """crea la carpeta, corre un  worker, mide cuánto demoró e imprime cuántos eventos por 
     segundo logró.  Medición de referencia antes de lanzar varios trabajadores en paralelo."""
-    carpeta = Path("data/raw")
+ carpeta = Path("data/raw")
     carpeta.mkdir(parents=True, exist_ok=True)
-
+    N_WORKERS = 10_000          # cada uno deja su propio part-<wid>.jsonl
     inicio = time.perf_counter()
-    stats = worker_shard(0, 100_000, carpeta, 42)
+    stats = [worker_shard(wid, 100_000, carpeta, 42) for wid in range(N_WORKERS)]
     transcurrido = time.perf_counter() - inicio
 
-    print(stats)
-    print(f"eventos/s: {stats['eventos'] / transcurrido:,.0f}")
+    eventos = sum(s["eventos"] for s in stats)
+    print({
+        "workers": len(stats),
+        "eventos": eventos,
+        "bytes": sum(s["bytes"] for s in stats),
+    })
+    print(f"eventos/s: {eventos / transcurrido:,.0f}")
