@@ -1,8 +1,8 @@
 import threading
 import time
 
-# Sustituir por el import real del generador de Francisco.
-from src.generador_francisco import generar_eventos
+# Importamos la lógica original intacta sin alterar tus archivos base
+from src.main import worker_shard
 
 
 TOTAL_EVENTOS = 100_000
