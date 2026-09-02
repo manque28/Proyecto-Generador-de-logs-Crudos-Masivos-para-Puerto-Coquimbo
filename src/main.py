@@ -9,10 +9,10 @@ import random
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-
+from concurrent.futures import ProcessPoolExecutor
 from esquema import formatear_evento
 
-DT_MS = 15_000              # cada tick del reloj simulado avanza 15 segundos
+DT_MS = 15_000              # cada tick del reloj simulado avanza 15 segundos "medición reportando cada 15 segundos."
 DT_S = DT_MS / 1000.0
 LOTE_BUFFER = 10_000        # cuantas lineas junto antes de mandarlas al archivo
 
@@ -76,7 +76,7 @@ class Faja:
         self.vibracion += (vib_obj - self.vibracion) * a
         self.corriente += (cur_obj - self.corriente) * a
 
-        # el max(0.0, ...) es para que el ruido no me deje valores negativos
+        # el max(0.0, ...) es para que el ruido no deje valores negativos
         return [
             {
                 "sensor_id": self.sensor_id,
@@ -212,13 +212,15 @@ def crear_activos(rng): #arma el equipo
 
 
 def worker_shard(wid, n_eventos, carpeta, semilla):
-        """1. calcula qué hora es en el reloj inventado
-        2. le pregunta a los 9 equipos qué marcan
-        3. guarda cada respuesta en una lista
-        4. cuando junta 10.000, las escribe al archivo de una
-        5. avanza el reloj 15 segundos
-        6. repite hasta llegar a 100.000 lecturas"""
-    """genera n_eventos y me los deja escritos en carpeta/part-<wid>.jsonl."""
+    """genera n_eventos y me los deja escritos en carpeta/part-<wid>.jsonl.
+
+    1. calcula que hora es en el reloj
+    2. le pregunta a los 9 equipos que marcan
+    3. guarda cada respuesta en una lista
+    4. cuando junta LOTE_BUFFER lineas, las escribe al archivo
+    5. avanza el reloj 15 segundos
+    6. repite hasta llegar a n_eventos lecturas
+    """
     rng = random.Random(semilla + wid)          # rng mio, nunca el random global
     activos = crear_activos(rng)
 
@@ -273,21 +275,70 @@ def worker_shard(wid, n_eventos, carpeta, semilla):
         "bytes": ruta.stat().st_size,
     }
 
+"""esto use para arreglar el error de los workers"""
 
-if __name__ == "__main__":
-    """crea la carpeta, corre un  worker, mide cuánto demoró e imprime cuántos eventos por 
-    segundo logró.  Medición de referencia antes de lanzar varios trabajadores en paralelo."""
- carpeta = Path("data/raw")
+def repartir(total, n_workers):
+    """reparte total entre n_workers sin perder ni inventar eventos.
+
+    el resto se lo llevan los primeros workers, de a uno. asi la suma de la
+    lista siempre da exactamente total, aunque no sea divisible.
+    ej: repartir(10, 4) -> [3, 3, 2, 2]
+    """
+    base, resto = divmod(total, n_workers)
+    return [base + (1 if wid < resto else 0) for wid in range(n_workers)]
+
+
+def _tarea(args):
+    """envoltorio para poder mandar worker_shard al pool de procesos."""
+    wid, n_eventos, carpeta, semilla = args
+    return worker_shard(wid, n_eventos, Path(carpeta), semilla)
+
+
+def correr_config(n_workers, total_eventos, raiz, semilla, paralelo):
+    """corre una configuracion completa y devuelve sus metricas."""
+    carpeta = Path(raiz) / f"w{n_workers:02d}"
     carpeta.mkdir(parents=True, exist_ok=True)
-    N_WORKERS = 10_000          # cada uno deja su propio part-<wid>.jsonl
+
+    cupos = repartir(total_eventos, n_workers)
+    tareas = [(wid, cupos[wid], str(carpeta), semilla) for wid in range(n_workers)]
+
     inicio = time.perf_counter()
-    stats = [worker_shard(wid, 100_000, carpeta, 42) for wid in range(N_WORKERS)]
+    if paralelo and n_workers > 1:
+        with ProcessPoolExecutor(max_workers=n_workers) as pool:
+            stats = list(pool.map(_tarea, tareas))
+    else:
+        stats = [_tarea(t) for t in tareas]
     transcurrido = time.perf_counter() - inicio
 
     eventos = sum(s["eventos"] for s in stats)
-    print({
-        "workers": len(stats),
+    return {
+        "workers": n_workers,
+        "eventos_por_worker": cupos[0],
         "eventos": eventos,
         "bytes": sum(s["bytes"] for s in stats),
-    })
-    print(f"eventos/s: {eventos / transcurrido:,.0f}")
+        "segundos": round(transcurrido, 2),
+        "eventos_s": round(eventos / transcurrido),
+    }
+
+if __name__ == "__main__":
+    TOTAL_EVENTOS = 10_000_000      # fijo: no importa n workers, siempre 10 millones de eventos
+    CONFIGS = (1, 2, 4, 8, 16)      # cada corrida reparte el mismo total
+    RAIZ = Path("data/raw")
+    SEMILLA = 42
+    PARALELO = True
+
+    resultados = []
+    for n_workers in CONFIGS:
+        r = correr_config(n_workers, TOTAL_EVENTOS, RAIZ, SEMILLA, PARALELO)
+        assert r["eventos"] == TOTAL_EVENTOS, r      # red de seguridad del total
+        resultados.append(r)
+        print(r)
+
+    print("\nworkers | eventos/worker |  segundos |    eventos/s | speedup")
+    base = resultados[0]["segundos"]
+    for r in resultados:
+        print(
+            f"{r['workers']:>7} | {r['eventos_por_worker']:>14,} | "
+            f"{r['segundos']:>9,.2f} | {r['eventos_s']:>12,} | "
+            f"{base / r['segundos']:>6.2f}x"
+        )
