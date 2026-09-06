@@ -60,7 +60,7 @@ def ejecutar_multiproceso():
     return fin - inicio
 
 
-if name == "main":
+if __name__ == "__main__":
     tiempo_monohilo = ejecutar_monohilo()
     tiempo_multihilo = ejecutar_multihilo()
     tiempo_multiproceso = ejecutar_multiproceso()
