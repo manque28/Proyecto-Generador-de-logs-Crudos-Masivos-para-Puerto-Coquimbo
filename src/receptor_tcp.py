@@ -112,8 +112,8 @@ class Receptor:
         self.tareas.add(tarea)
         peer = writer.get_extra_info("peername")
         try:
-            if self.cupos.locked():
-                print(f"conexion {peer} en espera, cupos ocupados", flush=True)
+            # sin aviso de "en espera": aqui todavia no se sabe si la conexion
+            # trae datos, y los healthchecks de compose lo llenarian el log
             async with self.cupos:
                 await self._recibir(reader, writer, peer)
         finally:
@@ -121,22 +121,36 @@ class Receptor:
             writer.close()
 
     async def _recibir(self, reader, writer, peer):
-        n = self.siguiente
-        self.siguiente += 1
-        ruta = self.data_dir / f"ingesta-{n:03d}.jsonl"
+        """recibe una conexion y la escribe en su ingesta-<n>.jsonl.
+
+        el archivo se abre recien con el primer bloque de datos. el
+        healthcheck de compose abre y cierra una conexion cada 5 s sin mandar
+        nada, y si el archivo se abriera al aceptar, cada chequeo dejaria un
+        ingesta-NNN.jsonl vacio y dos lineas de log. asi una conexion sin datos
+        no crea archivo, no gasta numero y no escribe nada en el log, y los
+        ingesta-NNN.jsonl de las conexiones reales quedan correlativos.
+        """
+        f = None
+        n = None
+        ruta = None
         lineas = 0
         bytes_rx = 0
         cola = 0          # bytes despues del ultimo \n, una linea aun incompleta
         inicio = time.perf_counter()
         motivo = "el emisor cerro la conexion"
-        print(f"conexion {n} desde {peer} -> {ruta.name}", flush=True)
 
-        f = open(ruta, "wb", buffering=TAM_BUFFER_ARCHIVO)
         try:
             while True:
                 datos = await reader.read(TAM_LECTURA)
                 if not datos:                            # eof, shutdown(SHUT_WR)
                     break
+                if f is None:
+                    # primer bloque con datos: recien aqui la conexion es real
+                    n = self.siguiente
+                    self.siguiente += 1
+                    ruta = self.data_dir / f"ingesta-{n:03d}.jsonl"
+                    f = open(ruta, "wb", buffering=TAM_BUFFER_ARCHIVO)
+                    print(f"conexion {n} desde {peer} -> {ruta.name}", flush=True)
                 f.write(datos)
                 bytes_rx += len(datos)
                 nuevas = datos.count(b"\n")
@@ -152,20 +166,22 @@ class Receptor:
         except (ConnectionError, OSError) as e:
             motivo = f"error de conexion: {e}"
         finally:
-            self._cerrar_archivo(f, cola)
-            segundos = time.perf_counter() - inicio
-            print(
-                f"conexion {n} cerrada ({motivo}): {lineas:,} eventos, "
-                f"{bytes_rx / 1e6:,.1f} MB en {segundos:.2f} s -> {ruta.name}",
-                flush=True,
-            )
-            if cola:
+            # conexion sin datos, como el healthcheck: no hay archivo ni log
+            if f is not None:
+                self._cerrar_archivo(f, cola)
+                segundos = time.perf_counter() - inicio
                 print(
-                    f"  aviso: la conexion {n} termino a mitad de una linea, "
-                    f"se descartaron {cola} bytes incompletos para que el archivo "
-                    f"quede con lineas json validas",
+                    f"conexion {n} cerrada ({motivo}): {lineas:,} eventos, "
+                    f"{bytes_rx / 1e6:,.1f} MB en {segundos:.2f} s -> {ruta.name}",
                     flush=True,
                 )
+                if cola:
+                    print(
+                        f"  aviso: la conexion {n} termino a mitad de una linea, "
+                        f"se descartaron {cola} bytes incompletos para que el archivo "
+                        f"quede con lineas json validas",
+                        flush=True,
+                    )
 
     def _sumar(self, nuevas):
         self.total += nuevas
