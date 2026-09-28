@@ -1,0 +1,67 @@
+# docker-compose.yml del laboratorio de docker, parte 3.
+# dos servicios sobre una red privada: el receptor escribe los .jsonl en el
+# host (bind mount) y el emisor le manda los 10 M de eventos por nombre DNS.
+# todos los valores salen del archivo .env que esta al lado.
+
+name: ${COMPOSE_PROJECT_NAME:-lab-bigdata}
+
+services:
+
+  ingestor-tcp:
+    build:
+      context: .
+      target: runtime            # etapa final del Dockerfile multi-etapa (v2)
+    image: proyecto/ingestor:v2
+    container_name: ingestor-tcp
+    init: true                   # PID 1 correcto (equivale a --init)
+    command: ["python", "-u", "src/receptor_tcp.py"]
+    environment:
+      BIND_HOST: 0.0.0.0         # CLAVE: 127.0.0.1 seria inalcanzable desde el emisor
+      TCP_PORT: ${TCP_PORT}
+      DATA_DIR: ${DATA_DIR}
+      N_PROCESOS: ${N_PROCESOS}  # el receptor espera una conexion por proceso emisor
+    ports:
+      - "${TCP_PORT}:${TCP_PORT}"  # solo para depurar desde el host
+    volumes:
+      - ${HOST_DATA_DIR}:/app/data  # bind mount -> los .jsonl quedan en el host
+    networks: [red-datos]
+    mem_limit: ${MEM_INGESTOR}
+    stop_grace_period: 30s       # tiempo para flush/fsync antes del SIGKILL
+    restart: unless-stopped
+    healthcheck:
+      # verifica desde dentro que el puerto ya acepta conexiones
+      test: >-
+        python -c "import socket,os;
+        socket.create_connection(('127.0.0.1', int(os.environ['TCP_PORT'])), 3)"
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  simulador-puerto:
+    build:
+      context: .
+      target: runtime
+    image: proyecto/simulador:v2
+    container_name: simulador-puerto
+    init: true
+    # la guia usa src/simulador.py; en este proyecto el emisor tcp
+    # multiproceso es src/emisor_tcp.py (simulador.py escribe a disco local)
+    command: ["python", "-u", "src/emisor_tcp.py"]
+    environment:
+      TCP_HOST: ${TCP_HOST}      # resuelve por el DNS interno de docker
+      TCP_PORT: ${TCP_PORT}
+      TOTAL_EVENTOS: ${TOTAL_EVENTOS}
+      N_PROCESOS: ${N_PROCESOS}
+      BATCH_SIZE: ${BATCH_SIZE}
+    depends_on:
+      ingestor-tcp:
+        condition: service_healthy  # no emite hasta que el puerto acepta
+    networks: [red-datos]
+    mem_limit: ${MEM_SIMULADOR}
+    restart: "no"                # es un job: termina y no se reinicia
+
+networks:
+  red-datos:
+    name: red-datos-lab
+    driver: bridge               # red privada aislada del resto del host
