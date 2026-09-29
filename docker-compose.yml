@@ -20,6 +20,7 @@ services:
       TCP_PORT: ${TCP_PORT}
       DATA_DIR: ${DATA_DIR}
       N_PROCESOS: ${N_PROCESOS}  # el receptor espera una conexion por proceso emisor
+      TINI_SUBREAPER: "1"
     ports:
       - "${TCP_PORT}:${TCP_PORT}"  # solo para depurar desde el host
     volumes:
@@ -54,6 +55,7 @@ services:
       TOTAL_EVENTOS: ${TOTAL_EVENTOS}
       N_PROCESOS: ${N_PROCESOS}
       BATCH_SIZE: ${BATCH_SIZE}
+      TINI_SUBREAPER: "1"
     depends_on:
       ingestor-tcp:
         condition: service_healthy  # no emite hasta que el puerto acepta
