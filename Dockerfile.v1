@@ -1,0 +1,21 @@
+# Dockerfile.v1: paso intermedio de la tabla 2.5.
+# corrige dos defectos de v0 (base pesada y orden de la cache), pero sigue
+# siendo de una sola etapa, corre como root y no tiene init para el PID 1.
+
+# base slim (~130 MB) en vez de la completa (~1 GB)
+FROM python:3.12-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+WORKDIR /app
+
+# CACHE: requirements antes que el codigo. si solo cambia src/, esta capa se
+# reutiliza y pip no vuelve a correr
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY src/ ./src/
+
+# forma exec: python recibe las senales directamente, pero sigue siendo root
+CMD ["python", "-u", "src/receptor_tcp.py"]
