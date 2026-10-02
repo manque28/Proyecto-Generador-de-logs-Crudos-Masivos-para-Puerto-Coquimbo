@@ -1,55 +1,69 @@
-# docker-compose.yml de la fase 2: cluster spark simulado en un solo equipo.
-# spark-master reparte recursos, los spark-worker aportan cores y memoria
-# (ahi corren los executors) y jupyter es el driver donde vive el notebook.
-# todos los valores salen del .env que esta al lado.
+# docker-compose.yml del laboratorio de docker, parte 3.
+# dos servicios sobre una red privada: el receptor escribe los .jsonl en el
+# host (bind mount) y el emisor le manda los 10 M de eventos por nombre DNS.
+# todos los valores salen del archivo .env que esta al lado.
 
-name: ${COMPOSE_PROJECT_NAME:-fase2-spark}
-
-# bloque comun que heredan los tres servicios
-x-spark-comun: &spark-comun
-  build:
-    context: ./docker
-  image: fase2/spark-lab:4.0.1     # una sola imagen para los tres roles (informe, 5.1)
-  env_file: .env                   # SPARK_EXECUTOR_MEMORY y SPARK_DRIVER_MEMORY llegan a spark
-  volumes:
-    # MISMA ruta en todos los nodos: cada executor abre los .jsonl por su cuenta,
-    # no es el driver quien los lee y reparte (informe, 5.4)
-    - ./:/opt/workspace
-  networks: [lab]
+name: ${COMPOSE_PROJECT_NAME:-lab-bigdata}
 
 services:
 
-  spark-master:
-    <<: *spark-comun
-    container_name: spark-master
-    hostname: spark-master
-    command: ["/opt/spark/bin/spark-class", "org.apache.spark.deploy.master.Master",
-              "--host", "spark-master", "--port", "7077", "--webui-port", "8080"]
+  ingestor-tcp:
+    build:
+      context: .
+      target: runtime            # etapa final del Dockerfile multi-etapa (v2)
+    image: proyecto/ingestor:v2
+    container_name: ingestor-tcp
+    init: true                   # PID 1 correcto (equivale a --init)
+    command: ["python", "-u", "src/receptor_tcp.py"]
+    environment:
+      BIND_HOST: 0.0.0.0         # CLAVE: 127.0.0.1 seria inalcanzable desde el emisor
+      TCP_PORT: ${TCP_PORT}
+      DATA_DIR: ${DATA_DIR}
+      N_PROCESOS: ${N_PROCESOS}  # el receptor espera una conexion por proceso emisor
+      TINI_SUBREAPER: "1"        # la imagen ya trae tini; asi no avisa por no ser PID 1
     ports:
-      - "8080:8080"                # ui del master
+      - "${TCP_PORT}:${TCP_PORT}"  # solo para depurar desde el host
+    volumes:
+      - ${HOST_DATA_DIR}:/app/data  # bind mount -> los .jsonl quedan en el host
+    networks: [red-datos]
+    mem_limit: ${MEM_INGESTOR}
+    stop_grace_period: 30s       # tiempo para flush/fsync antes del SIGKILL
+    restart: unless-stopped
+    healthcheck:
+      # verifica desde dentro que el puerto ya acepta conexiones
+      test: >-
+        python -c "import socket,os;
+        socket.create_connection(('127.0.0.1', int(os.environ['TCP_PORT'])), 3)"
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
 
-  spark-worker:
-    <<: *spark-comun
-    # sin container_name: compose numera las replicas (spark-worker-1, -2, ...)
-    command: ["/opt/spark/bin/spark-class", "org.apache.spark.deploy.worker.Worker",
-              "spark://spark-master:7077",
-              "--cores", "${SPARK_WORKER_CORES}", "--memory", "${SPARK_WORKER_MEMORY}"]
-    depends_on: [spark-master]
-    deploy:
-      replicas: ${SPARK_WORKERS}   # escalar: docker compose up -d --scale spark-worker=4
-
-  jupyter:
-    <<: *spark-comun
-    container_name: jupyter
-    hostname: jupyter              # debe coincidir con spark.driver.host (informe, 5.3)
-    command: ["jupyter", "lab", "--ip=0.0.0.0", "--port=8888", "--no-browser",
-              "--allow-root", "--IdentityProvider.token=${JUPYTER_TOKEN}",
-              "--ServerApp.root_dir=/opt/workspace"]
-    ports:
-      - "${PUERTO_JUPYTER}:8888"   # jupyterlab (8889 en el host)
-      - "4040:4040"                # ui del job, solo con una sesion activa
-    depends_on: [spark-master, spark-worker]
+  simulador-puerto:
+    build:
+      context: .
+      target: runtime
+    image: proyecto/simulador:v2
+    container_name: simulador-puerto
+    init: true
+    # la guia usa src/simulador.py; en este proyecto el emisor tcp
+    # multiproceso es src/emisor_tcp.py (simulador.py escribe a disco local)
+    command: ["python", "-u", "src/emisor_tcp.py"]
+    environment:
+      TCP_HOST: ${TCP_HOST}      # resuelve por el DNS interno de docker
+      TCP_PORT: ${TCP_PORT}
+      TOTAL_EVENTOS: ${TOTAL_EVENTOS}
+      N_PROCESOS: ${N_PROCESOS}
+      BATCH_SIZE: ${BATCH_SIZE}
+      TINI_SUBREAPER: "1"        # la imagen ya trae tini; asi no avisa por no ser PID 1
+    depends_on:
+      ingestor-tcp:
+        condition: service_healthy  # no emite hasta que el puerto acepta
+    networks: [red-datos]
+    mem_limit: ${MEM_SIMULADOR}
+    restart: "no"                # es un job: termina y no se reinicia
 
 networks:
-  lab:
-    name: red-spark-lab
+  red-datos:
+    name: red-datos-lab
+    driver: bridge               # red privada aislada del resto del host
