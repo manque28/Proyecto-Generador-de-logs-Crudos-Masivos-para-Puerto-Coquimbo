@@ -1,2 +1,4 @@
 data/raw/
 .env
+salida_fase2/
+.ipynb_checkpoints/
