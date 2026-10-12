@@ -6,7 +6,7 @@ Se ejecuta dentro del contenedor del driver:
 Cada comprobacion descarta un fallo concreto:
     1. sesion       -> el driver alcanza al master
     2. executors    -> hay recursos asignados de verdad (0 = executor pide mas memoria que el worker)
-    3. visibilidad  -> todos los executors ven /opt/workspace/data/raw (si no, FileNotFoundException)
+    3. visibilidad  -> todos los executors ven /opt/workspace/data/raw/w16 (si no, FileNotFoundException)
     4. lectura real -> el camino completo funciona sobre los 10 M de eventos
 """
 import glob
@@ -18,7 +18,7 @@ import time
 from pyspark.sql import SparkSession
 from pyspark.sql.types import DoubleType, LongType, StringType, StructField, StructType
 
-RUTA_DATOS = "/opt/workspace/data/raw"
+RUTA_DATOS = "/opt/workspace/data/raw/w16"   # misma subcarpeta que CONFIG_FASE1 del notebook
 
 spark = (
     SparkSession.builder
@@ -61,6 +61,8 @@ print(f"[3/4] Visibilidad de {RUTA_DATOS} desde los executors:")
 for host, n in vistas:
     estado = f"ve los datos ({n} archivos)" if n else "NO VE LOS DATOS"
     print(f"      {host:<30} {estado}")
+if not all(n for _, n in vistas):
+    sys.exit("      ERROR: algun executor no ve los .jsonl. Revisa el volumen /opt/workspace")
 
 esquema = StructType([
     StructField("timestamp", StringType(), True),
@@ -72,7 +74,10 @@ esquema = StructType([
 ])
 print("[4/4] Leyendo los datos crudos de la Fase 1...")
 df = spark.read.schema(esquema).json(RUTA_DATOS + "/*.jsonl")
-print(f"      Registros leidos : {df.count():,}")
+registros = df.count()
+print(f"      Registros leidos : {registros:,}")
 print(f"      Particiones      : {df.rdd.getNumPartitions()}")
+if registros == 0:
+    sys.exit("      ERROR: 0 registros leidos")
 
 spark.stop()
