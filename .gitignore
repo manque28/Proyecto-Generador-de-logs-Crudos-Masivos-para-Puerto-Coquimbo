@@ -1,2 +1,10 @@
 data/raw/
 .env
+salida_fase2/
+.ipynb_checkpoints/
+__pycache__/
+*.pyc
+spark-warehouse/
+metastore_db/
+derby.log
+*.docx
