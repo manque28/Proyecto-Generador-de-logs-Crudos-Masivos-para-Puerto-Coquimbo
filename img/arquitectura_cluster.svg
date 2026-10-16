@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 600" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="flecha" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#475569"/>
+    </marker>
+    <marker id="flecha-datos" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#0f766e"/>
+    </marker>
+  </defs>
+
+  <rect width="960" height="600" fill="#ffffff"/>
+
+  <!-- equipo anfitrion -->
+  <rect x="16" y="16" width="928" height="568" rx="14" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="6 5"/>
+  <text x="36" y="44" font-size="14" fill="#64748b">Un solo equipo · Docker Desktop · red red-spark-lab</text>
+
+  <!-- driver -->
+  <rect x="40" y="72" width="270" height="150" rx="10" fill="#eef2ff" stroke="#6366f1" stroke-width="2"/>
+  <text x="58" y="100" font-size="17" font-weight="700" fill="#312e81">Driver</text>
+  <text x="58" y="122" font-size="13" fill="#3730a3">contenedor jupyter</text>
+  <text x="58" y="150" font-size="13" fill="#1e293b">Notebook fase2_pyspark.ipynb</text>
+  <text x="58" y="170" font-size="13" fill="#1e293b">Arma el plan y reparte tareas</text>
+  <text x="58" y="190" font-size="13" fill="#1e293b">Recibe solo resultados resumidos</text>
+  <text x="58" y="210" font-size="12" fill="#64748b">:8889 JupyterLab · :4040 UI del job</text>
+
+  <!-- master -->
+  <rect x="650" y="72" width="270" height="150" rx="10" fill="#fff7ed" stroke="#ea580c" stroke-width="2"/>
+  <text x="668" y="100" font-size="17" font-weight="700" fill="#7c2d12">Master</text>
+  <text x="668" y="122" font-size="13" fill="#9a3412">contenedor spark-master</text>
+  <text x="668" y="150" font-size="13" fill="#1e293b">Registra los workers</text>
+  <text x="668" y="170" font-size="13" fill="#1e293b">Asigna núcleos y memoria</text>
+  <text x="668" y="190" font-size="13" fill="#1e293b">a cada aplicación</text>
+  <text x="668" y="210" font-size="12" fill="#64748b">spark://spark-master:7077 · :8080 UI</text>
+
+  <!-- driver -> master -->
+  <line x1="312" y1="130" x2="646" y2="130" stroke="#475569" stroke-width="2" marker-end="url(#flecha)"/>
+  <text x="479" y="120" font-size="13" fill="#334155" text-anchor="middle">1 · pide recursos</text>
+
+  <!-- workers -->
+  <g>
+    <rect x="40" y="290" width="270" height="140" rx="10" fill="#f0fdf4" stroke="#16a34a" stroke-width="2"/>
+    <text x="58" y="318" font-size="17" font-weight="700" fill="#14532d">Worker 1</text>
+    <text x="58" y="340" font-size="13" fill="#166534">2 núcleos · 3 GB</text>
+    <rect x="58" y="356" width="234" height="56" rx="8" fill="#ffffff" stroke="#16a34a"/>
+    <text x="175" y="380" font-size="14" font-weight="600" fill="#14532d" text-anchor="middle">Executor</text>
+    <text x="175" y="400" font-size="12" fill="#334155" text-anchor="middle">hasta 2 tareas a la vez</text>
+  </g>
+  <g>
+    <rect x="345" y="290" width="270" height="140" rx="10" fill="#f0fdf4" stroke="#16a34a" stroke-width="2"/>
+    <text x="363" y="318" font-size="17" font-weight="700" fill="#14532d">Worker 2</text>
+    <text x="363" y="340" font-size="13" fill="#166534">2 núcleos · 3 GB</text>
+    <rect x="363" y="356" width="234" height="56" rx="8" fill="#ffffff" stroke="#16a34a"/>
+    <text x="480" y="380" font-size="14" font-weight="600" fill="#14532d" text-anchor="middle">Executor</text>
+    <text x="480" y="400" font-size="12" fill="#334155" text-anchor="middle">hasta 2 tareas a la vez</text>
+  </g>
+  <g>
+    <rect x="650" y="290" width="270" height="140" rx="10" fill="#f0fdf4" stroke="#16a34a" stroke-width="2"/>
+    <text x="668" y="318" font-size="17" font-weight="700" fill="#14532d">Worker 3</text>
+    <text x="668" y="340" font-size="13" fill="#166534">2 núcleos · 3 GB</text>
+    <rect x="668" y="356" width="234" height="56" rx="8" fill="#ffffff" stroke="#16a34a"/>
+    <text x="785" y="380" font-size="14" font-weight="600" fill="#14532d" text-anchor="middle">Executor</text>
+    <text x="785" y="400" font-size="12" fill="#334155" text-anchor="middle">hasta 2 tareas a la vez</text>
+  </g>
+
+  <!-- master -> workers -->
+  <line x1="785" y1="224" x2="785" y2="286" stroke="#475569" stroke-width="2" marker-end="url(#flecha)"/>
+  <line x1="740" y1="224" x2="500" y2="286" stroke="#475569" stroke-width="2" marker-end="url(#flecha)"/>
+  <text x="812" y="262" font-size="13" fill="#334155">2 · lanza executors</text>
+
+  <!-- driver <-> executors -->
+  <line x1="175" y1="224" x2="175" y2="286" stroke="#475569" stroke-width="2" marker-start="url(#flecha)" marker-end="url(#flecha)"/>
+  <line x1="250" y1="224" x2="440" y2="286" stroke="#475569" stroke-width="2" marker-start="url(#flecha)" marker-end="url(#flecha)"/>
+  <text x="34" y="262" font-size="13" fill="#334155">3 · tareas ↓ resultados ↑</text>
+
+  <!-- volumen compartido -->
+  <rect x="40" y="482" width="880" height="84" rx="10" fill="#f0fdfa" stroke="#0f766e" stroke-width="2"/>
+  <text x="480" y="512" font-size="16" font-weight="700" fill="#134e4a" text-anchor="middle">Volumen compartido /opt/workspace (misma ruta en todos los contenedores)</text>
+  <text x="480" y="538" font-size="13" fill="#1e293b" text-anchor="middle">data/raw/w16/ · 16 archivos .jsonl · 1,18 GiB   →   salida_fase2/ · Parquet particionado por día</text>
+  <text x="480" y="558" font-size="12" fill="#0f766e" text-anchor="middle">Cada executor lee y escribe sus propios archivos: los datos no pasan por el driver</text>
+
+  <!-- executors <-> volumen -->
+  <line x1="175" y1="432" x2="175" y2="478" stroke="#0f766e" stroke-width="2.5" marker-start="url(#flecha-datos)" marker-end="url(#flecha-datos)"/>
+  <line x1="480" y1="432" x2="480" y2="478" stroke="#0f766e" stroke-width="2.5" marker-start="url(#flecha-datos)" marker-end="url(#flecha-datos)"/>
+  <line x1="785" y1="432" x2="785" y2="478" stroke="#0f766e" stroke-width="2.5" marker-start="url(#flecha-datos)" marker-end="url(#flecha-datos)"/>
+  <text x="196" y="462" font-size="12" fill="#0f766e">4 · lee / escribe</text>
+</svg>

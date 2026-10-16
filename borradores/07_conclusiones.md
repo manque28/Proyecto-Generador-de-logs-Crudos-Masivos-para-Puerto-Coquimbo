@@ -1,11 +1,11 @@
 # 07 Conclusiones
 
-- **Esquema explicito (Implicancia 3):** `inferSchema` lanzo 1 job(s) y tardo 26.0 s en leer
-  1.18 GiB solo para deducir tipos; el `StructType` no lanzo ninguno (0.70 s).
+- **Esquema explicito (Implicancia 3):** `inferSchema` lanzo 1 job(s) y tardo 7.9 s en leer
+  1.18 GiB solo para deducir tipos; el `StructType` no lanzo ninguno (0.35 s).
 - **Calidad:** 10,000,000 eventos crudos, 10,000,000 limpios, 0 en cuarentena; 27 chequeos OK.
-- **Shuffle:** la configuracion 200 con AQE fue la mas rapida (2.33 s).
+- **Shuffle:** la configuracion 12 sin AQE fue la mas rapida (0.51 s).
 - **Parquet:** 34.5 MiB frente a 1,212.6 MiB de JSONL (35.2x), con poda por fecha verificada.
-- **Sesgo:** con `faja_1` al 47.0%, la tarea rezagada leyo 4,784,996 filas; el salting en dos
-  fases la bajo a 335,682 con el mismo resultado (0.70x).
+- **Sesgo:** con `faja_1` al 47.0%, la tarea rezagada leyo 5,214,599 filas; el salting en dos
+  fases la bajo a 1,605,409 con el mismo resultado (1.27x).
 - **Joins (Implicancia 7):** el join ingenuo por `sensor_id` produjo 10,486,486 filas (+486,486);
   el range join con `broadcast` conservo las 10,000,000 filas.
