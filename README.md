@@ -138,24 +138,27 @@ docker compose down
 
 | Hito | Etapa | Qué resuelve |
 |:---:|:---|:---|
-| 1 | Ingesta | Lee los JSONL con esquema declarado, sin inferirlo |
+| 1 | Ingesta | Lee los JSONL con esquema declarado y mide lo que costaría inferirlo |
 | 2 | Perfilado | 27 chequeos de calidad, sin modificar los datos |
 | 3 | Limpieza | Marca las líneas defectuosas y las aparta en cuarentena, sin borrarlas |
 | 4 | Shuffle | Compara configuraciones de particiones y AQE sobre una misma consulta |
 | 5 | Escritura | Parquet particionado por día, releído y verificado |
+| 6 | Sesgo y joins | Provoca una clave sesgada y la mitiga con *salting*; compara un join ingenuo con un *range join* |
 
 ## Resultados
 
-Medidos en un clúster de 3 workers con 2 núcleos cada uno. Los tiempos varían según el equipo.
+Medidos en un clúster de 3 workers con 2 núcleos y 3 GB cada uno. Los tiempos varían según el equipo.
 
 | Etapa | Resultado |
 |:---|:---|
-| Ingesta | 10.000.000 de eventos (1,18 GiB) leídos en 9,9 s |
+| Ingesta | 10.000.000 de eventos (1,18 GiB) leídos en 7,9 s; inferir el esquema habría sumado 7,9 s más |
 | Perfilado | 27 de 27 chequeos correctos: 0 líneas corruptas, 0 duplicados, 0 huecos |
 | Limpieza | 10.000.000 de eventos limpios, balance de conteos verificado |
-| Shuffle | De 1,54 s a 0,59 s (2,62×) al ajustar las particiones |
-| Escritura | 34,9 MiB en Parquet, 34,8 veces menos que el JSONL |
+| Shuffle | De 1,30 s a 0,51 s (2,56×) al ajustar las particiones |
+| Escritura | 34,5 MiB en Parquet, 35,2 veces menos que el JSONL |
 | Consulta de un día | 1.065.600 filas en 0,12 s, leyendo 1 de 10 carpetas |
+| Sesgo | Tarea rezagada de 747 ms reducida a 274 ms con *salting*; consulta 1,27× más rápida |
+| Joins | El join ingenuo fabricó 486.486 filas; el *range join* con *broadcast* conservó las 10.000.000 |
 
 ## Estructura del repositorio
 
@@ -176,7 +179,10 @@ Medidos en un clúster de 3 workers con 2 núcleos cada uno. Los tiempos varían
 ├── docker-compose.yml        clúster: master, workers y Jupyter
 ├── .env.example              plantilla de recursos del clúster
 ├── verificar_cluster.py      prueba de humo del clúster
-├── fase2_pyspark.ipynb       notebook de la Fase 2
+├── fase2_pyspark.ipynb       notebook de la Fase 2, con las celdas Markdown de la presentación
+├── img/                      diagrama del clúster y capturas de la UI de Spark que usa el notebook
+├── borradores_markdown/      fuente de las celdas Markdown y script que las inserta en el notebook
+├── borradores/               resúmenes que genera el propio notebook (hito 6.5)
 └── docs/                     informes
 ```
 
