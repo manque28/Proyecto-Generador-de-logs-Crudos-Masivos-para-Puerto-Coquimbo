@@ -38,38 +38,30 @@
 
   <!-- workers -->
   <g>
-    <rect x="40" y="290" width="270" height="140" rx="10" fill="#f0fdf4" stroke="#16a34a" stroke-width="2"/>
-    <text x="58" y="318" font-size="17" font-weight="700" fill="#14532d">Worker 1</text>
-    <text x="58" y="340" font-size="13" fill="#166534">2 núcleos · 3 GB</text>
-    <rect x="58" y="356" width="234" height="56" rx="8" fill="#ffffff" stroke="#16a34a"/>
-    <text x="175" y="380" font-size="14" font-weight="600" fill="#14532d" text-anchor="middle">Executor</text>
-    <text x="175" y="400" font-size="12" fill="#334155" text-anchor="middle">hasta 2 tareas a la vez</text>
+    <rect x="185" y="290" width="270" height="140" rx="10" fill="#f0fdf4" stroke="#16a34a" stroke-width="2"/>
+    <text x="203" y="318" font-size="17" font-weight="700" fill="#14532d">Worker 1</text>
+    <text x="203" y="340" font-size="13" fill="#166534">2 núcleos · 2 GB</text>
+    <rect x="203" y="356" width="234" height="56" rx="8" fill="#ffffff" stroke="#16a34a"/>
+    <text x="320" y="380" font-size="14" font-weight="600" fill="#14532d" text-anchor="middle">Executor</text>
+    <text x="320" y="400" font-size="12" fill="#334155" text-anchor="middle">hasta 2 tareas a la vez</text>
   </g>
   <g>
-    <rect x="345" y="290" width="270" height="140" rx="10" fill="#f0fdf4" stroke="#16a34a" stroke-width="2"/>
-    <text x="363" y="318" font-size="17" font-weight="700" fill="#14532d">Worker 2</text>
-    <text x="363" y="340" font-size="13" fill="#166534">2 núcleos · 3 GB</text>
-    <rect x="363" y="356" width="234" height="56" rx="8" fill="#ffffff" stroke="#16a34a"/>
-    <text x="480" y="380" font-size="14" font-weight="600" fill="#14532d" text-anchor="middle">Executor</text>
-    <text x="480" y="400" font-size="12" fill="#334155" text-anchor="middle">hasta 2 tareas a la vez</text>
-  </g>
-  <g>
-    <rect x="650" y="290" width="270" height="140" rx="10" fill="#f0fdf4" stroke="#16a34a" stroke-width="2"/>
-    <text x="668" y="318" font-size="17" font-weight="700" fill="#14532d">Worker 3</text>
-    <text x="668" y="340" font-size="13" fill="#166534">2 núcleos · 3 GB</text>
-    <rect x="668" y="356" width="234" height="56" rx="8" fill="#ffffff" stroke="#16a34a"/>
-    <text x="785" y="380" font-size="14" font-weight="600" fill="#14532d" text-anchor="middle">Executor</text>
-    <text x="785" y="400" font-size="12" fill="#334155" text-anchor="middle">hasta 2 tareas a la vez</text>
+    <rect x="505" y="290" width="270" height="140" rx="10" fill="#f0fdf4" stroke="#16a34a" stroke-width="2"/>
+    <text x="523" y="318" font-size="17" font-weight="700" fill="#14532d">Worker 2</text>
+    <text x="523" y="340" font-size="13" fill="#166534">2 núcleos · 2 GB</text>
+    <rect x="523" y="356" width="234" height="56" rx="8" fill="#ffffff" stroke="#16a34a"/>
+    <text x="640" y="380" font-size="14" font-weight="600" fill="#14532d" text-anchor="middle">Executor</text>
+    <text x="640" y="400" font-size="12" fill="#334155" text-anchor="middle">hasta 2 tareas a la vez</text>
   </g>
 
   <!-- master -> workers -->
-  <line x1="785" y1="224" x2="785" y2="286" stroke="#475569" stroke-width="2" marker-end="url(#flecha)"/>
-  <line x1="740" y1="224" x2="500" y2="286" stroke="#475569" stroke-width="2" marker-end="url(#flecha)"/>
-  <text x="812" y="262" font-size="13" fill="#334155">2 · lanza executors</text>
+  <line x1="760" y1="224" x2="700" y2="286" stroke="#475569" stroke-width="2" marker-end="url(#flecha)"/>
+  <line x1="690" y1="224" x2="420" y2="286" stroke="#475569" stroke-width="2" marker-end="url(#flecha)"/>
+  <text x="790" y="262" font-size="13" fill="#334155">2 · lanza executors</text>
 
   <!-- driver <-> executors -->
-  <line x1="175" y1="224" x2="175" y2="286" stroke="#475569" stroke-width="2" marker-start="url(#flecha)" marker-end="url(#flecha)"/>
-  <line x1="250" y1="224" x2="440" y2="286" stroke="#475569" stroke-width="2" marker-start="url(#flecha)" marker-end="url(#flecha)"/>
+  <line x1="200" y1="224" x2="260" y2="286" stroke="#475569" stroke-width="2" marker-start="url(#flecha)" marker-end="url(#flecha)"/>
+  <line x1="270" y1="224" x2="560" y2="286" stroke="#475569" stroke-width="2" marker-start="url(#flecha)" marker-end="url(#flecha)"/>
   <text x="34" y="262" font-size="13" fill="#334155">3 · tareas ↓ resultados ↑</text>
 
   <!-- volumen compartido -->
@@ -79,8 +71,7 @@
   <text x="480" y="558" font-size="12" fill="#0f766e" text-anchor="middle">Cada executor lee y escribe sus propios archivos: los datos no pasan por el driver</text>
 
   <!-- executors <-> volumen -->
-  <line x1="175" y1="432" x2="175" y2="478" stroke="#0f766e" stroke-width="2.5" marker-start="url(#flecha-datos)" marker-end="url(#flecha-datos)"/>
-  <line x1="480" y1="432" x2="480" y2="478" stroke="#0f766e" stroke-width="2.5" marker-start="url(#flecha-datos)" marker-end="url(#flecha-datos)"/>
-  <line x1="785" y1="432" x2="785" y2="478" stroke="#0f766e" stroke-width="2.5" marker-start="url(#flecha-datos)" marker-end="url(#flecha-datos)"/>
-  <text x="196" y="462" font-size="12" fill="#0f766e">4 · lee / escribe</text>
+  <line x1="320" y1="432" x2="320" y2="478" stroke="#0f766e" stroke-width="2.5" marker-start="url(#flecha-datos)" marker-end="url(#flecha-datos)"/>
+  <line x1="640" y1="432" x2="640" y2="478" stroke="#0f766e" stroke-width="2.5" marker-start="url(#flecha-datos)" marker-end="url(#flecha-datos)"/>
+  <text x="341" y="462" font-size="12" fill="#0f766e">4 · lee / escribe</text>
 </svg>

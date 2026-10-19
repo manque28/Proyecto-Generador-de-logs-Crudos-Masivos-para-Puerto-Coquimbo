@@ -12,18 +12,18 @@ Es como una cocina: el jefe de cocina reparte los pedidos, el encargado sabe cu�
 |:---|:---|:---|
 | **Driver** (jefe de cocina) | `jupyter` | Es este notebook. Divide cada consulta en tareas pequeñas y junta los resultados. **No procesa los datos.** |
 | **Master** (encargado) | `spark-master` | Sabe qué workers hay y cuántos núcleos y memoria tiene cada uno. |
-| **Workers** (cocineros) | `spark-worker-1` a `3` | Ponen los núcleos y la memoria. Dentro de ellos corren los *executors*, que son los que leen y procesan las filas. |
+| **Workers** (cocineros) | `spark-worker-1` y `spark-worker-2` | Ponen los núcleos y la memoria. Dentro de ellos corren los *executors*, que son los que leen y procesan las filas. |
 
 <div align="center">
-<img src="img/arquitectura_cluster.svg" alt="Diagrama del clúster: driver, master, tres workers y volumen compartido" width="720"><br>
+<img src="img/arquitectura_cluster.svg" alt="Diagrama del clúster: driver, master, dos workers y volumen compartido" width="720"><br>
 <em>Figura 1. Arquitectura de nuestro clúster. Los tres roles corren en contenedores Docker de un mismo equipo.</em>
 </div>
 
-> **Nota.** Los tres workers comparten la misma carpeta, `/opt/workspace`. Así cada executor abre sus archivos `.jsonl` directamente, sin pedírselos al driver.
+> **Nota.** Los dos workers comparten la misma carpeta, `/opt/workspace`. Así cada executor abre sus archivos `.jsonl` directamente, sin pedírselos al driver.
 
 <!-- ===== CELDA 1.2 · INTERPRETACIÓN + CONTEXTO · antes de Hito 1.3 ===== -->
 
-**Lectura del resultado.** Hay **16 archivos** de unos 85 MiB cada uno, **1,18 GiB** en total. Aquí solo revisamos nombres y tamaños; todavía no se lee ninguna fila.
+**Lectura del resultado.** Hay **16 archivos** de unos 76 MiB cada uno, **1,18 GiB** en total. Aquí solo revisamos nombres y tamaños; todavía no se lee ninguna fila.
 
 ### Tamaño del clúster
 
@@ -36,20 +36,20 @@ $$
 Con nuestros números:
 
 $$
-3 \times 3\,\text{GB} + 3\,\text{GB} = 12\,\text{GB} < 15{,}4\,\text{GB}
+2 \times 2\,\text{GB} + 2\,\text{GB} = 6\,\text{GB} < 11{,}7\,\text{GB}
 $$
 
 Estos valores se configuran en el archivo `.env`:
 
 | Variable del `.env` | Valor |
 |:---|---:|
-| `SPARK_WORKERS` | 3 |
+| `SPARK_WORKERS` | 2 |
 | `SPARK_WORKER_CORES` | 2 |
-| `SPARK_WORKER_MEMORY` | 3g |
-| `SPARK_EXECUTOR_MEMORY` | 3g |
-| `SPARK_DRIVER_MEMORY` | 3g |
+| `SPARK_WORKER_MEMORY` | 2g |
+| `SPARK_EXECUTOR_MEMORY` | 2g |
+| `SPARK_DRIVER_MEMORY` | 2g |
 
-Docker tiene 15,4 GB en nuestro equipo (lo vimos con `docker info --format "{{.MemTotal}}"`). Es el perfil de 16 GB de la tabla del `README`. Sobran 3,4 GB para el sistema y los contenedores.
+Docker tiene 11,7 GB en nuestro equipo (lo vimos con `docker info --format "{{.MemTotal}}"`). Es el perfil de 8 GB de la tabla del `README`. Sobran 5,7 GB para el sistema y los contenedores.
 
 > **Atención.** `SPARK_EXECUTOR_MEMORY` no puede ser mayor que `SPARK_WORKER_MEMORY`. Si el executor pide más memoria de la que tiene su worker, el clúster enciende igual, pero con **0 executors**, y nada avanza.
 
@@ -59,15 +59,15 @@ Docker tiene 15,4 GB en nuestro equipo (lo vimos con `docker info --format "{{.M
 
 | Lo que medimos | Resultado | Qué significa |
 |:---|:---:|:---|
-| Executors activos | **3 de 3** | Los tres workers están conectados y listos. |
-| Paralelismo | **6** | 3 workers × 2 núcleos: Spark puede hacer hasta 6 tareas a la vez. |
+| Executors activos | **2 de 2** | Los dos workers están conectados y listos. |
+| Paralelismo | **4** | 2 workers × 2 núcleos: Spark puede hacer hasta 4 tareas a la vez. |
 | Master | `spark://spark-master:7077` | El notebook usa el clúster, no solo el computador local. |
 
 La celda termina con un `assert`, que es una revisión automática: si falta algún executor, el notebook se detiene ahí en vez de seguir con menos recursos de los que creemos tener.
 
 <div align="center">
-<img src="img/ui_8080_workers.png" alt="UI del master en el puerto 8080 con los tres workers registrados" width="720"><br>
-<em>Figura 2. Página del master (<code>localhost:8080</code>): tres workers activos (ALIVE), con 2 núcleos y 3 GiB cada uno, y este notebook (<code>fase2-sitio3</code>) usando los 6 núcleos.</em>
+<img src="img/ui_8080_workers.png" alt="UI del master en el puerto 8080 con los dos workers registrados" width="720"><br>
+<em>Figura 2. Página del master (<code>localhost:8080</code>), captura de nuestra ejecución de referencia: dos workers activos (ALIVE), con 2 núcleos y 2 GiB cada uno, y el notebook (<code>fase2-sitio3</code>) usando los 4 núcleos.</em>
 </div>
 
 **Prueba rápida.** Antes de abrir el notebook corremos `verificar_cluster.py`, que revisa cuatro cosas: que el driver se conecta al master, que hay executors, que todos ven los datos y que se pueden leer completos.
@@ -78,18 +78,17 @@ $ docker compose exec jupyter python3 verificar_cluster.py
       Spark   : 4.0.1
       Python  : 3.10.12
       Master  : spark://spark-master:7077
-[2/4] Executors vivos : 3
-      Paralelismo     : 6 tareas en paralelo
+[2/4] Executors vivos : 2
+      Paralelismo     : 4 tareas en paralelo
 [3/4] Visibilidad de /opt/workspace/data/raw/w16 desde los executors:
-      6ce4c40fa9ab                   ve los datos (16 archivos)
-      82164bf597cc                   ve los datos (16 archivos)
-      a6c351f4c851                   ve los datos (16 archivos)
+      3dde4f235f39                   ve los datos (16 archivos)
+      474e9fbef97e                   ve los datos (16 archivos)
 [4/4] Leyendo los datos crudos de la Fase 1...
       Registros leidos : 10,000,000
       Particiones      : 16
 ```
 
-El paso 3 es el más importante: **cada worker** revisa por su cuenta que ve la carpeta (los tres códigos son los nombres de los workers). Si uno no la viera, el notebook fallaría más adelante, a mitad de una lectura.
+El paso 3 es el más importante: **cada worker** revisa por su cuenta que ve la carpeta (los dos códigos son los nombres de los workers). Si uno no la viera, el notebook fallaría más adelante, a mitad de una lectura.
 
 ### Por qué no usar `.collect()` con millones de filas
 

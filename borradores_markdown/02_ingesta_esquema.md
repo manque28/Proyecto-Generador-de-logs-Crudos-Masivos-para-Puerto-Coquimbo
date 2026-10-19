@@ -32,7 +32,7 @@ Es como escribir una receta antes de cocinar: las transformaciones son los pasos
 **Lectura del resultado.** La celda anterior no hizo ningún trabajo: Spark solo anotó dónde leer y con qué esquema.
 
 - `printSchema()` muestra los tipos **que nosotros declaramos**, no los que hay en los archivos.
-- Hay **16 particiones**, una por archivo. Una partición es un trozo de datos que un executor procesa por su cuenta. Cada archivo pesa unos 85 MiB, menos que el máximo de 128 MiB por partición (`maxPartitionBytes`), así que cabe entero en una.
+- Hay **16 particiones**, una por archivo. Una partición es un trozo de datos que un executor procesa por su cuenta. Cada archivo pesa unos 76 MiB, menos que el máximo de 128 MiB por partición (`maxPartitionBytes`), así que cabe entero en una.
 
 > **Nota.** El aviso `WARN FileStreamSink`, con su texto largo de Java, no es un error. Aparece porque la ruta usa un comodín (`*.jsonl`), y la lectura funciona normal.
 
@@ -44,12 +44,12 @@ La celda siguiente mide qué pasa si **no** declaramos el esquema.
 
 | Lectura | Tiempo | Trabajos lanzados |
 |:---|---:|:---:|
-| Esquema adivinado (`inferSchema`) | 7,88 s | 1 |
-| Esquema declarado (`StructType`) | 0,35 s | 0 |
+| Esquema adivinado (`inferSchema`) | 9,91 s | 1 |
+| Esquema declarado (`StructType`) | 0,48 s | 0 |
 
 Con `inferSchema`, Spark **leyó los 1,18 GiB completos** solo para adivinar los tipos, sin que le pidiéramos ningún resultado. Esa lectura no queda guardada: cuando pidamos el primer resultado, tendrá que leer todo otra vez. Con `StructType` la definición es inmediata y no lee nada.
 
-Aquí la diferencia es de 7,5 s. Con terabytes, adivinar el esquema es **pagar dos veces la parte más lenta del proceso**.
+Aquí la diferencia es de 9,4 s. Con terabytes, adivinar el esquema es **pagar dos veces la parte más lenta del proceso**.
 
 Esta vez Spark adivinó bien (`value` como `double` y `worker_id` como `bigint`). Pero fue suerte: si mañana llega un archivo con `value` escrito como texto, el tipo adivinado cambiaría y los cálculos de más adelante fallarían. El esquema declarado no cambia.
 
@@ -63,11 +63,11 @@ Las dos celdas siguientes son las primeras **acciones**: `show(5)` lee solo lo j
 |:---|---:|
 | Registros leídos | 10.000.000 |
 | Registros esperados | 10.000.000 |
-| Tiempo de lectura + cache | 7,9 s |
+| Tiempo de lectura + cache | 13,4 s |
 
 El `assert` confirma que no se perdió ninguna línea.
 
-La lectura completa tomó 7,9 s, casi lo mismo que los 7,88 s que `inferSchema` gastó solo en adivinar los tipos. O sea, sin esquema declarado la carga habría tomado **el doble**.
+La lectura completa tomó 13,4 s, y `inferSchema` había gastado 9,91 s solo en adivinar los tipos. O sea, sin esquema declarado la carga habría tomado 23,3 s: **1,7 veces** lo que tomó.
 
 Usamos `.cache()` porque las secciones siguientes recorren los datos muchas veces. El cache guarda los datos ya leídos en la memoria de los executors. Sin él, cada acción tendría que volver a abrir y leer los 1,18 GiB de JSON.
 

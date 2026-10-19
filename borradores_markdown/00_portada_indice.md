@@ -8,7 +8,7 @@
 
 | Datos de entrada | Clúster | Salida |
 |:---|:---|:---|
-| 10.000.000 de lecturas de sensores<br>16 archivos `.jsonl` · 1,18 GiB | Spark 4.0.1 en Docker<br>1 master · 3 workers · driver en Jupyter | Parquet particionado por día<br>en `salida_fase2/` |
+| 10.000.000 de lecturas de sensores<br>16 archivos `.jsonl` · 1,18 GiB | Spark 4.0.1 en Docker<br>1 master · 2 workers · driver en Jupyter | Parquet particionado por día<br>en `salida_fase2/` |
 
 > **Idea central.** Todo lo que hacemos aquí está pensado para datos que **no caben en la memoria de una sola máquina**. Por eso cada decisión del notebook se respalda con una medición de nuestro propio clúster: un tiempo, un conteo o un plan de ejecución.
 

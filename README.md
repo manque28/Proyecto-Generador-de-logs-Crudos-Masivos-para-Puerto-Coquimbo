@@ -147,17 +147,17 @@ docker compose down
 
 ## Resultados
 
-Medidos en un clúster de 3 workers con 2 núcleos y 3 GB cada uno. Los tiempos varían según el equipo.
+Medidos en un clúster de 2 workers con 2 núcleos y 2 GB cada uno (perfil de 8 GB). Los tiempos varían según el equipo.
 
 | Etapa | Resultado |
 |:---|:---|
-| Ingesta | 10.000.000 de eventos (1,18 GiB) leídos en 7,9 s; inferir el esquema habría sumado 7,9 s más |
+| Ingesta | 10.000.000 de eventos (1,18 GiB) leídos en 13,4 s; inferir el esquema habría sumado 9,9 s más |
 | Perfilado | 27 de 27 chequeos correctos: 0 líneas corruptas, 0 duplicados, 0 huecos |
 | Limpieza | 10.000.000 de eventos limpios, balance de conteos verificado |
-| Shuffle | De 1,30 s a 0,51 s (2,56×) al ajustar las particiones |
-| Escritura | 34,5 MiB en Parquet, 35,2 veces menos que el JSONL |
-| Consulta de un día | 1.065.600 filas en 0,12 s, leyendo 1 de 10 carpetas |
-| Sesgo | Tarea rezagada de 747 ms reducida a 274 ms con *salting*; consulta 1,27× más rápida |
+| Shuffle | De 1,89 s a 0,93 s (2,04×) con 8 particiones sin AQE |
+| Escritura | 34,2 MiB en Parquet, 35,5 veces menos que el JSONL |
+| Consulta de un día | 1.065.600 filas en 0,16 s, leyendo 1 de 10 carpetas |
+| Sesgo | Tarea rezagada de 792 ms reducida a 404 ms con *salting*; en esta corrida la consulta completa no se aceleró (0,96×) |
 | Joins | El join ingenuo fabricó 486.486 filas; el *range join* con *broadcast* conservó las 10.000.000 |
 
 ## Estructura del repositorio

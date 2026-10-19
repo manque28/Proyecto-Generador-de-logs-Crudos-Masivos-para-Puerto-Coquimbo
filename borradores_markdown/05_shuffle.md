@@ -45,25 +45,25 @@ Las particiones de entrada están parejas: 16 particiones con una razón de 1,30
 
 | Configuración | Mediana | Tareas (etapa 1 → etapa 2) | Datos en *shuffle* | Frente a la base |
 |:---|---:|:---:|---:|---:|
-| 200 sin AQE (valor por defecto) | 1,30 s | 16 → 200 | 1,9 MiB | 1,00× |
-| 200 con AQE | 0,55 s | 16 → 2 | 1,9 MiB | 2,36× |
-| 6 sin AQE (1× núcleos) | 0,53 s | 16 → 6 | 1,2 MiB | 2,45× |
-| **12 sin AQE** (2× núcleos) | **0,51 s** | 16 → 12 | 1,2 MiB | **2,56×** |
+| 200 sin AQE (valor por defecto) | 1,89 s | 16 → 200 | 1,9 MiB | 1,00× |
+| 200 con AQE | 1,04 s | 16 → 2 | 1,9 MiB | 1,83× |
+| 4 sin AQE (1× núcleos) | 0,87 s | 16 → 4 | 1,2 MiB | 2,18× |
+| **8 sin AQE** (2× núcleos) | **0,93 s** | 16 → 8 | 1,2 MiB | **2,04×** |
 
 **Por qué 200 es lento aquí.** El *shuffle* mueve solo 1,9 MiB. Repartido en 200 particiones son unos 10 KiB por tarea: 200 tareas casi vacías, donde se gasta más tiempo en lanzarlas y coordinarlas que en procesar datos.
 
 <div align="center">
 <img src="img/ui_4040_stages.png" alt="Detalle de un job en la UI de Spark: etapa de 16 tareas y etapa de shuffle de 200 tareas" width="720"><br>
-<em>Figura 3. Un job de la configuración «200 sin AQE» en <code>localhost:4040</code>. La etapa 1 lee 164 MiB del cache con 16 tareas; la etapa 2 usa 200 tareas para leer apenas 1.988 KiB de <em>shuffle</em>.</em>
+<em>Figura 3. Un job de la configuración «200 sin AQE» en <code>localhost:4040</code> (captura de nuestra ejecución de referencia). La etapa 1 lee 164 MiB del cache con 16 tareas; la etapa 2 usa 200 tareas para leer apenas 1.988 KiB de <em>shuffle</em>.</em>
 </div>
 
-**Qué resuelve AQE.** Con las mismas 200 particiones configuradas, AQE mide el tamaño real después de la etapa 1 y las une en **2**. El tiempo baja de 1,30 s a 0,55 s sin que tengamos que adivinar el número correcto.
+**Qué resuelve AQE.** Con las mismas 200 particiones configuradas, AQE mide el tamaño real después de la etapa 1 y las une en **2**. El tiempo baja de 1,89 s a 1,04 s sin que tengamos que adivinar el número correcto.
 
-**El ajuste manual y AQE llegan casi al mismo lugar.** Con 6 o 12 particiones, una o dos por núcleo, cada tarea tiene trabajo real y no sobra ninguna. Las tres configuraciones ajustadas quedan dentro de 0,04 s (0,51 s, 0,53 s y 0,55 s), y en ejecuciones anteriores el orden entre ellas cambió. La conclusión no depende de cuál gane: **lo que hay que evitar son las 200 tareas casi vacías**, y para eso sirve tanto ajustar el número a los núcleos como dejar que AQE lo ajuste solo.
+**El ajuste manual y AQE llegan a tiempos parecidos.** Con 4 u 8 particiones, una o dos por núcleo, cada tarea tiene trabajo real y no sobra ninguna. Las tres configuraciones ajustadas quedan dentro de 0,17 s (0,87 s, 0,93 s y 1,04 s), y en ejecuciones anteriores el orden entre ellas cambió. La conclusión no depende de cuál gane: **lo que hay que evitar son las 200 tareas casi vacías**, y para eso sirve tanto ajustar el número a los núcleos como dejar que AQE lo ajuste solo.
 
 **Por qué el *shuffle* pesa tan poco.** Gracias a la agregación parcial del paso 2, por la red viajan los resúmenes por serie y hora, no los 10 millones de filas.
 
-El hito 4.4 aplica la configuración más rápida al resto del notebook; en esta ejecución fue **12 particiones sin AQE**.
+El hito 4.4 aplica **8 particiones sin AQE** al resto del notebook. En esta ejecución 4 particiones fue apenas más rápida (0,87 s frente a 0,93 s), pero dejamos fijo 8 para que las ejecuciones del grupo sean comparables.
 
 > **Atención.** Ese número sirve para este volumen de datos. Si los datos crecen, un valor fijo se queda corto; por eso AQE es la opción segura cuando no se conoce de antemano el tamaño del *shuffle*.
 
