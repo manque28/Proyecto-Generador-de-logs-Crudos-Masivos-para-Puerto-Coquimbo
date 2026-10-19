@@ -2,42 +2,44 @@
 
 ## Clúster y procesamiento distribuido
 
-**Qué hacemos:** levantamos un clúster de Spark y abrimos la sesión desde la que trabaja todo el notebook.
+**Qué hacemos:** encendemos un clúster de Spark, es decir, un grupo de máquinas que trabajan juntas, y conectamos este notebook a él.
 
-**Por qué importa en Big Data:** una sola máquina tiene un techo. Se le puede agregar RAM y núcleos (*escalado vertical*), pero llega un punto en que ya no hay más que agregar o deja de ser rentable. Spark toma el otro camino, el *escalado horizontal*: reparte el trabajo entre varias máquinas, y si los datos crecen se suman más máquinas en vez de una más grande.
+**Por qué importa en Big Data:** un solo computador tiene un límite. Se le puede poner más memoria y más núcleos (*escalado vertical*), pero llega un momento en que no se puede más o sale demasiado caro. Spark hace lo contrario: reparte el trabajo entre varias máquinas (*escalado horizontal*). Si los datos crecen, se agregan más máquinas en vez de comprar una más grande.
 
-En nuestro clúster cada pieza tiene un rol distinto:
+Es como una cocina: el jefe de cocina reparte los pedidos, el encargado sabe cuántos cocineros hay disponibles, y los cocineros preparan los platos. En nuestro clúster:
 
 | Rol | Contenedor | Qué hace |
 |:---|:---|:---|
-| **Driver** | `jupyter` | Es este notebook. Arma el plan de cada consulta, lo divide en tareas y recibe los resultados. **No procesa los datos.** |
-| **Master** | `spark-master` | Administra los recursos: sabe qué workers existen y cuántos núcleos y memoria tiene cada uno. |
-| **Workers** | `spark-worker-1` a `3` | Aportan los núcleos y la memoria. En ellos corren los *executors*, que son los que de verdad leen y procesan las filas. |
+| **Driver** (jefe de cocina) | `jupyter` | Es este notebook. Divide cada consulta en tareas pequeñas y junta los resultados. **No procesa los datos.** |
+| **Master** (encargado) | `spark-master` | Sabe qué workers hay y cuántos núcleos y memoria tiene cada uno. |
+| **Workers** (cocineros) | `spark-worker-1` a `3` | Ponen los núcleos y la memoria. Dentro de ellos corren los *executors*, que son los que leen y procesan las filas. |
 
 <div align="center">
 <img src="img/arquitectura_cluster.svg" alt="Diagrama del clúster: driver, master, tres workers y volumen compartido" width="720"><br>
 <em>Figura 1. Arquitectura de nuestro clúster. Los tres roles corren en contenedores Docker de un mismo equipo.</em>
 </div>
 
-> **Nota.** Los tres workers montan la misma carpeta `/opt/workspace`. Así cada executor abre sus propios archivos `.jsonl`: los datos nunca pasan por el driver.
+> **Nota.** Los tres workers comparten la misma carpeta, `/opt/workspace`. Así cada executor abre sus archivos `.jsonl` directamente, sin pedírselos al driver.
 
 <!-- ===== CELDA 1.2 · INTERPRETACIÓN + CONTEXTO · antes de Hito 1.3 ===== -->
 
-**Lectura del resultado.** Hay **16 archivos** de unos 85 MiB cada uno, **1,18 GiB** en total. Esta comprobación solo mira nombres y tamaños desde el driver; todavía no se lee ni una fila.
+**Lectura del resultado.** Hay **16 archivos** de unos 85 MiB cada uno, **1,18 GiB** en total. Aquí solo revisamos nombres y tamaños; todavía no se lee ninguna fila.
 
-### Dimensionamiento del clúster
+### Tamaño del clúster
 
-Antes de abrir la sesión hay que asegurarse de que el clúster cabe en la memoria que Docker tiene asignada. La regla que usamos en el `.env` es:
+Antes de encender el clúster hay que comprobar que cabe en la memoria que tiene Docker. La regla es simple: la memoria de todos los workers más la del driver tiene que ser menor que la memoria de Docker.
 
 $$
 \text{workers} \times \text{memoria por worker} + \text{memoria del driver} < \text{RAM de Docker}
 $$
 
-Con nuestra configuración:
+Con nuestros números:
 
 $$
 3 \times 3\,\text{GB} + 3\,\text{GB} = 12\,\text{GB} < 15{,}4\,\text{GB}
 $$
+
+Estos valores se configuran en el archivo `.env`:
 
 | Variable del `.env` | Valor |
 |:---|---:|
@@ -47,28 +49,28 @@ $$
 | `SPARK_EXECUTOR_MEMORY` | 3g |
 | `SPARK_DRIVER_MEMORY` | 3g |
 
-Los 15,4 GB son la memoria que Docker tiene asignada en nuestro equipo (`docker info --format "{{.MemTotal}}"`). Corresponde al perfil de 16 GB de la tabla del `README`, y deja 3,4 GB de holgura para el sistema y los propios contenedores.
+Docker tiene 15,4 GB en nuestro equipo (lo vimos con `docker info --format "{{.MemTotal}}"`). Es el perfil de 16 GB de la tabla del `README`. Sobran 3,4 GB para el sistema y los contenedores.
 
-> **Atención.** `SPARK_EXECUTOR_MEMORY` no puede superar a `SPARK_WORKER_MEMORY`. Si el executor pide más memoria de la que su worker ofrece, el clúster arranca igual pero queda con **0 executors** y ningún job avanza.
+> **Atención.** `SPARK_EXECUTOR_MEMORY` no puede ser mayor que `SPARK_WORKER_MEMORY`. Si el executor pide más memoria de la que tiene su worker, el clúster enciende igual, pero con **0 executors**, y nada avanza.
 
 <!-- ===== CELDA 1.3 · INTERPRETACIÓN · antes de Hito 1.4 ===== -->
 
-### El clúster está operativo
+### El clúster funciona
 
 | Lo que medimos | Resultado | Qué significa |
 |:---|:---:|:---|
-| Executors vivos | **3 de 3** | Los tres workers se registraron y tienen recursos asignados. |
-| Paralelismo | **6** | 3 workers × 2 núcleos: Spark puede ejecutar hasta 6 tareas al mismo tiempo. |
-| Master | `spark://spark-master:7077` | El driver trabaja contra el clúster, no en modo local. |
+| Executors activos | **3 de 3** | Los tres workers están conectados y listos. |
+| Paralelismo | **6** | 3 workers × 2 núcleos: Spark puede hacer hasta 6 tareas a la vez. |
+| Master | `spark://spark-master:7077` | El notebook usa el clúster, no solo el computador local. |
 
-La celda termina con un `assert`: si faltara algún executor, el notebook se detiene ahí en vez de seguir con menos recursos de los que creemos tener.
+La celda termina con un `assert`, que es una revisión automática: si falta algún executor, el notebook se detiene ahí en vez de seguir con menos recursos de los que creemos tener.
 
 <div align="center">
 <img src="img/ui_8080_workers.png" alt="UI del master en el puerto 8080 con los tres workers registrados" width="720"><br>
-<em>Figura 2. UI del master (<code>localhost:8080</code>): tres workers en estado ALIVE, con 2 núcleos y 3 GiB cada uno, y este notebook (<code>fase2-sitio3</code>) usando los 6 núcleos.</em>
+<em>Figura 2. Página del master (<code>localhost:8080</code>): tres workers activos (ALIVE), con 2 núcleos y 3 GiB cada uno, y este notebook (<code>fase2-sitio3</code>) usando los 6 núcleos.</em>
 </div>
 
-**Prueba de humo.** Antes de abrir el notebook ejecutamos `verificar_cluster.py`, que revisa cuatro cosas: que el driver alcanza al master, que hay executors, que todos ven los datos y que la lectura completa funciona.
+**Prueba rápida.** Antes de abrir el notebook corremos `verificar_cluster.py`, que revisa cuatro cosas: que el driver se conecta al master, que hay executors, que todos ven los datos y que se pueden leer completos.
 
 ```text
 $ docker compose exec jupyter python3 verificar_cluster.py
@@ -87,15 +89,15 @@ $ docker compose exec jupyter python3 verificar_cluster.py
       Particiones      : 16
 ```
 
-La comprobación 3 es la más importante: la ejecuta **cada executor por su cuenta**, desde su propio contenedor (los tres nombres son los de los workers). Si algún worker no viera la carpeta compartida, el notebook fallaría recién a mitad de una lectura.
+El paso 3 es el más importante: **cada worker** revisa por su cuenta que ve la carpeta (los tres códigos son los nombres de los workers). Si uno no la viera, el notebook fallaría más adelante, a mitad de una lectura.
 
-### Por qué un `.collect()` de millones de filas es un error
+### Por qué no usar `.collect()` con millones de filas
 
-`.collect()` trae **todas** las filas del resultado a la memoria del driver, que es un solo proceso. Hacerlo con los 10 millones de lecturas sería volver al techo de una sola máquina que el clúster justamente evita, y lo más probable es que el driver se caiga por falta de memoria.
+`.collect()` trae **todas** las filas al driver, que es un solo proceso. Hacerlo con 10 millones de lecturas es volver al límite de un solo computador, justo lo que el clúster evita. Lo más probable es que el driver se quede sin memoria y se caiga.
 
-En este notebook `.collect()` aparece solo sobre resultados **ya resumidos** por los executors: 5 filas (una por métrica) o 16 filas (una por archivo de entrada). El trabajo pesado se queda en el clúster y al driver solo viaja la respuesta.
+En este notebook solo usamos `.collect()` con resultados **ya resumidos** por los executors: 5 filas (una por métrica) o 16 filas (una por archivo). El trabajo pesado lo hace el clúster y al driver solo le llega la respuesta.
 
-> **Idea clave.** El driver coordina, los executors procesan. Si un dato no cabe en una máquina, tampoco cabe en el driver.
+> **Idea clave.** El driver organiza y los executors trabajan. Si los datos no caben en una máquina, tampoco caben en el driver.
 
 [↑ Volver al índice](#Índice)
 

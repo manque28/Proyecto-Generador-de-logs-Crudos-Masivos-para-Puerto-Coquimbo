@@ -2,62 +2,62 @@
 
 ## Ingesta con esquema declarado
 
-**Qué hacemos:** declaramos el esquema de los datos, definimos la lectura de los 16 archivos y recién al final ejecutamos la primera acción sobre el dataset completo.
+**Qué hacemos:** le decimos a Spark qué tipo de dato tiene cada columna (el *esquema*), le indicamos dónde están los 16 archivos y, al final, le pedimos el primer resultado.
 
-**Por qué importa en Big Data:** aquí se juntan dos ideas.
+**Por qué importa en Big Data:** aquí hay dos ideas.
 
-**1. El esquema.** Si no le decimos a Spark qué tipo tiene cada columna, tiene que leer todos los archivos una vez solo para adivinarlo, y después otra vez para trabajar. Con 1,18 GiB es una espera; con terabytes es pagar la lectura dos veces. Además, un esquema adivinado puede cambiar de una ejecución a otra según los datos que lleguen. Declarado, los tipos son siempre los mismos.
+**1. El esquema.** Si no le decimos a Spark qué tipo tiene cada columna, tiene que leer todos los archivos solo para adivinarlo, y después leerlos otra vez para trabajar. Con 1,18 GiB es una espera; con terabytes es pagar dos veces la lectura. Además, lo que adivina puede cambiar según los datos que lleguen. Si lo declaramos nosotros, los tipos son siempre los mismos.
 
 | Columna | Tipo | Por qué |
 |:---|:---|:---|
-| `timestamp` | `String` | Primero se valida como texto; se convierte a fecha en la limpieza. |
-| `sensor_id`, `metric`, `unit` | `String` | Identificadores y etiquetas. |
-| `value` | `Double` | La medición. Si quedara como texto no se podría promediar ni comparar. |
-| `worker_id` | `Long` | Proceso que generó la lectura. |
-| `_corrupt_record` | `String` | Recibe la línea completa cuando no se puede interpretar. |
+| `timestamp` | `String` (texto) | Primero se revisa como texto; en la limpieza se convierte a fecha. |
+| `sensor_id`, `metric`, `unit` | `String` (texto) | Son nombres y etiquetas. |
+| `value` | `Double` (número decimal) | Es la medición. Si fuera texto no se podría promediar ni comparar. |
+| `worker_id` | `Long` (número entero) | Proceso que generó la lectura. |
+| `_corrupt_record` | `String` (texto) | Guarda la línea completa cuando no se puede leer. |
 
-Leemos en modo `PERMISSIVE`: una línea dañada no bota la lectura ni se pierde, queda guardada en `_corrupt_record` para revisarla después.
+Usamos el modo `PERMISSIVE`: si una línea viene dañada, la lectura no se cae ni la línea se pierde. Queda guardada en `_corrupt_record` para revisarla después.
 
-**2. La evaluación perezosa.** Spark distingue dos tipos de instrucciones:
+**2. La evaluación perezosa.** Spark tiene dos tipos de instrucciones:
 
-| | Qué hacen | Ejemplos | ¿Ejecutan algo? |
+| | Qué hacen | Ejemplos | ¿Se ejecutan al tiro? |
 |:---|:---|:---|:---:|
 | **Transformaciones** | Describen un paso | `read`, `filter`, `select`, `withColumn`, `groupBy` | No |
 | **Acciones** | Piden un resultado | `count`, `show`, `collect`, `write` | Sí |
 
-Las transformaciones solo se anotan. Cuando llega una acción, Spark ya conoce el plan completo y puede optimizarlo antes de mover un solo dato.
+Es como escribir una receta antes de cocinar: las transformaciones son los pasos anotados y la acción es la orden de empezar. Como Spark ve la receta completa antes de partir, puede buscar la forma más rápida de hacerla.
 
 <!-- ===== CELDA 2.2 · INTERPRETACIÓN · antes de Hito 1.5b ===== -->
 
-**Lectura del resultado.** La celda anterior no lanzó ningún job: Spark solo anotó de dónde leer y con qué esquema.
+**Lectura del resultado.** La celda anterior no hizo ningún trabajo: Spark solo anotó dónde leer y con qué esquema.
 
-- `printSchema()` muestra los tipos **que declaramos**, no los que encontró en los archivos.
-- Hay **16 particiones de lectura**, una por archivo: cada archivo pesa unos 85 MiB y cabe completo bajo el límite de 128 MiB por partición (`maxPartitionBytes`). Cada partición es una tarea que un executor puede tomar por separado.
+- `printSchema()` muestra los tipos **que nosotros declaramos**, no los que hay en los archivos.
+- Hay **16 particiones**, una por archivo. Una partición es un trozo de datos que un executor procesa por su cuenta. Cada archivo pesa unos 85 MiB, menos que el máximo de 128 MiB por partición (`maxPartitionBytes`), así que cabe entero en una.
 
-> **Nota.** El aviso `WARN FileStreamSink` con su traza de Java no es un error. Aparece porque la ruta lleva un comodín (`*.jsonl`) y la lectura sigue con normalidad.
+> **Nota.** El aviso `WARN FileStreamSink`, con su texto largo de Java, no es un error. Aparece porque la ruta usa un comodín (`*.jsonl`), y la lectura funciona normal.
 
-La celda siguiente mide qué habría pasado si **no** hubiéramos declarado el esquema.
+La celda siguiente mide qué pasa si **no** declaramos el esquema.
 
 <!-- ===== CELDA 2.2b · INTERPRETACIÓN · antes de Hito 1.6 ===== -->
 
 ### Lo que cuesta no declarar el esquema
 
-| Lectura | Tiempo | Jobs lanzados |
+| Lectura | Tiempo | Trabajos lanzados |
 |:---|---:|:---:|
-| Esquema inferido (`inferSchema`) | 7,88 s | 1 |
+| Esquema adivinado (`inferSchema`) | 7,88 s | 1 |
 | Esquema declarado (`StructType`) | 0,35 s | 0 |
 
-Con `inferSchema`, Spark **recorrió los 1,18 GiB completos** solo para adivinar los tipos, y eso ocurrió antes de que pidiéramos cualquier resultado. Esa lectura no deja nada guardado: cuando llegue la primera acción habrá que leer todo de nuevo. Con el `StructType` la definición es instantánea y no lanza ningún job.
+Con `inferSchema`, Spark **leyó los 1,18 GiB completos** solo para adivinar los tipos, sin que le pidiéramos ningún resultado. Esa lectura no queda guardada: cuando pidamos el primer resultado, tendrá que leer todo otra vez. Con `StructType` la definición es inmediata y no lee nada.
 
-A esta escala son 7,5 s de diferencia. Con terabytes, inferir el esquema significa **pagar dos veces la lectura más cara del proceso**.
+Aquí la diferencia es de 7,5 s. Con terabytes, adivinar el esquema es **pagar dos veces la parte más lenta del proceso**.
 
-Aquí los tipos inferidos coincidieron con los declarados (`value` como `double`, `worker_id` como `bigint`). Pero eso es suerte de estos datos: si un día llegara un archivo con `value` escrito como texto, el esquema inferido cambiaría solo y los cálculos de más adelante fallarían. El esquema declarado no cambia.
+Esta vez Spark adivinó bien (`value` como `double` y `worker_id` como `bigint`). Pero fue suerte: si mañana llega un archivo con `value` escrito como texto, el tipo adivinado cambiaría y los cálculos de más adelante fallarían. El esquema declarado no cambia.
 
-Las dos celdas que siguen son las primeras **acciones**: `show(5)` lee solo lo necesario para mostrar cinco filas, y `count()` es la primera que recorre el dataset completo.
+Las dos celdas siguientes son las primeras **acciones**: `show(5)` lee solo lo justo para mostrar cinco filas, y `count()` es la primera que recorre todos los datos.
 
 <!-- ===== CELDA 2.3 · INTERPRETACIÓN · antes de Hito 2 ===== -->
 
-### La primera acción recorre los 10 millones de filas
+### La primera acción lee los 10 millones de filas
 
 | Lo que medimos | Resultado |
 |:---|---:|
@@ -65,13 +65,13 @@ Las dos celdas que siguen son las primeras **acciones**: `show(5)` lee solo lo n
 | Registros esperados | 10.000.000 |
 | Tiempo de lectura + cache | 7,9 s |
 
-El `assert` confirma que no se perdió ninguna línea entre los archivos y Spark.
+El `assert` confirma que no se perdió ninguna línea.
 
-Esta lectura completa tomó 7,9 s, prácticamente lo mismo que los 7,88 s que `inferSchema` gastó solo en adivinar los tipos. Es decir, sin esquema declarado la ingesta habría costado **el doble**.
+La lectura completa tomó 7,9 s, casi lo mismo que los 7,88 s que `inferSchema` gastó solo en adivinar los tipos. O sea, sin esquema declarado la carga habría tomado **el doble**.
 
-Usamos `.cache()` porque las secciones que siguen recorren el dataset muchas veces. Sin cache, cada acción volvería a abrir y a interpretar los 1,18 GiB de JSON; con cache, los executors guardan el resultado en su memoria y lo reutilizan.
+Usamos `.cache()` porque las secciones siguientes recorren los datos muchas veces. El cache guarda los datos ya leídos en la memoria de los executors. Sin él, cada acción tendría que volver a abrir y leer los 1,18 GiB de JSON.
 
-> **Idea clave.** Declarar el esquema evita una lectura completa de más, y la evaluación perezosa permite que Spark vea todo el plan antes de ejecutarlo. Más adelante, en el plan del [diagnóstico del shuffle](#Diagnóstico-del-shuffle), se ve esa optimización con nuestros propios datos.
+> **Idea clave.** Declarar el esquema evita leer todo dos veces, y la evaluación perezosa deja que Spark vea el plan completo antes de ejecutarlo. Esto se ve con nuestros datos en el [diagnóstico del shuffle](#Diagnóstico-del-shuffle).
 
 [↑ Volver al índice](#Índice)
 
