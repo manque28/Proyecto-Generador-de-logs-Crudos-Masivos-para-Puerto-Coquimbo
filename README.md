@@ -103,6 +103,7 @@ cp .env.example .env
 |:---|---:|---:|---:|---:|
 | 6 GB | 2 | 1 | 1 GB | 1 GB |
 | 8 GB | 2 | 2 | 2 GB | 2 GB |
+| 12 GB | 3 | 2 | 2 GB | 2 GB |
 | 16 GB | 3 | 2 | 3 GB | 3 GB |
 | 32 GB | 4 | 3 | 6 GB | 4 GB |
 
@@ -147,17 +148,17 @@ docker compose down
 
 ## Resultados
 
-Medidos en un clúster de 2 workers con 2 núcleos y 2 GB cada uno (perfil de 8 GB). Los tiempos varían según el equipo.
+Medidos en un clúster de 3 workers con 2 núcleos y 2 GB cada uno (perfil de 12 GB). Los tiempos varían según el equipo.
 
 | Etapa | Resultado |
 |:---|:---|
-| Ingesta | 10.000.000 de eventos (1,18 GiB) leídos en 13,4 s; inferir el esquema habría sumado 9,9 s más |
+| Ingesta | 10.000.000 de eventos (1,18 GiB) leídos en 17,5 s; inferir el esquema habría sumado 13,1 s más |
 | Perfilado | 27 de 27 chequeos correctos: 0 líneas corruptas, 0 duplicados, 0 huecos |
 | Limpieza | 10.000.000 de eventos limpios, balance de conteos verificado |
-| Shuffle | De 1,89 s a 0,93 s (2,04×) con 8 particiones sin AQE |
-| Escritura | 34,2 MiB en Parquet, 35,5 veces menos que el JSONL |
-| Consulta de un día | 1.065.600 filas en 0,16 s, leyendo 1 de 10 carpetas |
-| Sesgo | Tarea rezagada de 792 ms reducida a 404 ms con *salting*; en esta corrida la consulta completa no se aceleró (0,96×) |
+| Shuffle | De 3,11 s a 1,16 s (2,68×) con 12 particiones sin AQE |
+| Escritura | 34,5 MiB en Parquet, 35,1 veces menos que el JSONL |
+| Consulta de un día | 1.065.600 filas en 0,26 s, leyendo 1 de 10 carpetas |
+| Sesgo | Tarea rezagada de 1.142 ms reducida a 600 ms con *salting*; consulta 1,06× más rápida |
 | Joins | El join ingenuo fabricó 486.486 filas; el *range join* con *broadcast* conservó las 10.000.000 |
 
 ## Estructura del repositorio

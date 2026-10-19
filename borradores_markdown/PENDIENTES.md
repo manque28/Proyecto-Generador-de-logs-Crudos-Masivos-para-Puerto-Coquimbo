@@ -1,6 +1,6 @@
 # Pendientes para la presentación
 
-Actualizado el 19-10-2026, con la ejecución de 2 workers sobre la última versión de GitHub.
+Actualizado el 19-10-2026, con la ejecución de referencia de 3 workers.
 
 ## Estado
 
@@ -8,10 +8,10 @@ Actualizado el 19-10-2026, con la ejecución de 2 workers sobre la última versi
 
 | Dato | Valor de la ejecución presentada |
 |:---|:---|
-| Clúster | 2 workers × 2 núcleos × 2 GB, driver de 2 GB (`.env`, perfil de 8 GB) |
+| Clúster | 3 workers × 2 núcleos × 2 GB, driver de 2 GB (`.env`, perfil de 12 GB) |
 | RAM de Docker | 11,7 GB |
-| Imágenes | `img/arquitectura_cluster.svg`, `ui_8080_workers.png`, `ui_4040_stages.png` (job 60), `ui_4040_sesgo_sin_salting.png` (etapa 168), `ui_4040_sesgo_con_salting.png` (etapa 170) |
-| Shuffle | Fijado en 8 particiones sin AQE en el hito 4.4 (celda 46 del notebook) |
+| Imágenes | `img/arquitectura_cluster.svg`, `ui_8080_workers.png`, `ui_4040_stages.png` (job 61), `ui_4040_sesgo_sin_salting.png` (etapa 169), `ui_4040_sesgo_con_salting.png` (etapa 171) |
+| Shuffle | Fijado en 2 particiones por núcleo sin AQE en el hito 4.4 (celda 46 del notebook): 12 con 3 workers |
 
 ## Falta
 
@@ -24,16 +24,16 @@ En el notebook estos valores los calcula cada corrida. Los bloques INTERPRETACI�
 
 | Celda | Valores escritos |
 |:---|:---|
-| 2.2b | `inferSchema` 9,91 s y 1 job · `StructType` 0,48 s y 0 jobs |
-| 2.3 | Lectura + cache: 13,4 s |
-| 3.3 | 2,7 · 4,5 · 8,4 · 6,9 · 3,4 · total 25,9 s · cache de 199,6 MiB |
-| 4.2 | Total de la limpieza: 14,7 s |
-| 5.3 | 1,89 · 1,04 · 0,87 · 0,93 s · mejoras 1,83× / 2,18× / 2,04× · se aplica 8 sin AQE (fijado) |
-| 6.2 | 40 archivos · 34,2 MiB · 35,5× · escritura 16,5 s |
-| 6.3 | Conteo desde Parquet: 2,3 s · consulta de un día: 0,16 s |
-| 7.3 | `faja_1` 4.698.974 (47,0 %) · tarea más cargada 5.243.278 / 1.790.754 · 792 / 404 ms · mediana 136 / 251 ms · 1,60 / 1,67 s · 0,96× |
+| 2.2b | `inferSchema` 13,10 s y 1 job · `StructType` 0,67 s y 0 jobs |
+| 2.3 | Lectura + cache: 17,5 s |
+| 3.3 | 4,2 · 7,3 · 12,5 · 10,1 · 5,4 · total 39,5 s · cache de 199,6 MiB |
+| 4.2 | Total de la limpieza: 20,1 s |
+| 5.3 | 3,11 · 1,44 · 1,21 · 1,16 s · mejoras 2,16× / 2,58× / 2,68× · se aplica 12 sin AQE (fijado) |
+| 6.2 | 60 archivos · 34,5 MiB · 35,1× · escritura 27,9 s |
+| 6.3 | Conteo desde Parquet: 4,4 s · consulta de un día: 0,26 s |
+| 7.3 | `faja_1` 4.698.974 (47,0 %) · tarea más cargada 5.214.599 / 1.605.409 · 1.142 / 600 ms · mediana 151 / 288 ms · 2,41 / 2,28 s · 1,06× |
 | 8.2 | Join ingenuo: 10.486.486 (+486.486) |
-| 8.3 | Range join: 10.000.000 · 216.218 marcadas · 0,9 s / 0,7 s |
+| 8.3 | Range join: 10.000.000 · 216.218 marcadas · 1,4 s / 1,1 s |
 | 9.1 | Repite los valores anteriores |
 
 ## Opcional (código de Cristian)

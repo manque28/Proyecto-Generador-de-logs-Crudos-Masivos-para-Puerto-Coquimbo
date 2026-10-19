@@ -39,17 +39,17 @@ Por eso el perfilado se hace **por métrica y por familia**, no con un `describe
 
 | Bloque | Resultado | Tiempo |
 |:---|:---|---:|
-| Validez por línea | 0 corruptas · 0 nulos · 0 valores imposibles | 2,7 s |
-| Dominio | 69 equipos · 185 series · 5 métricas con su unidad | 4,5 s |
-| Duplicados | 0 claves repetidas | 8,4 s |
-| Continuidad | 54.054 a 54.055 lecturas por serie · 0 huecos · 9,38 días | 6,9 s |
-| Perfil de valores | 5 métricas perfiladas | 3,4 s |
-| **Total** | **27 de 27 correctos** | **25,9 s** |
+| Validez por línea | 0 corruptas · 0 nulos · 0 valores imposibles | 4,2 s |
+| Dominio | 69 equipos · 185 series · 5 métricas con su unidad | 7,3 s |
+| Duplicados | 0 claves repetidas | 12,5 s |
+| Continuidad | 54.054 a 54.055 lecturas por serie · 0 huecos · 9,38 días | 10,1 s |
+| Perfil de valores | 5 métricas perfiladas | 5,4 s |
+| **Total** | **27 de 27 correctos** | **39,5 s** |
 
 Dos cosas que muestran los tiempos:
 
-- **Buscar duplicados es lo más caro (8,4 s)** aunque no encuentre ninguno: para saber si una lectura se repite hay que juntar todas las filas con la misma clave, y eso obliga a mover datos entre executors. Es el *shuffle* que analizamos en la [sección 5](#Diagnóstico-del-shuffle).
-- **La validez por línea es lo más barato (2,7 s)**: cada fila se revisa por sí sola, sin depender de ninguna otra.
+- **Buscar duplicados es lo más caro (12,5 s)** aunque no encuentre ninguno: para saber si una lectura se repite hay que juntar todas las filas con la misma clave, y eso obliga a mover datos entre executors. Es el *shuffle* que analizamos en la [sección 5](#Diagnóstico-del-shuffle).
+- **La validez por línea es lo más barato (4,2 s)**: cada fila se revisa por sí sola, sin depender de ninguna otra.
 
 Todo esto se midió sobre el cache: los 1.212,6 MiB de JSONL ocupan **199,6 MiB** en la memoria de los executors (16 de 16 particiones), así que ningún chequeo volvió a leer los archivos.
 

@@ -6,7 +6,7 @@
 
 **Por qué importa en Big Data:** una etapa termina recién cuando termina **su tarea más lenta**. Después de un *shuffle*, todas las filas de una misma clave van a parar a la misma partición. Si una clave tiene la mitad de los datos, una sola tarea hace la mitad del trabajo mientras los demás núcleos esperan sin hacer nada. Esa tarea es el *straggler* (tarea rezagada).
 
-Lo grave es que **agregar más máquinas no lo arregla**: una clave no se puede repartir entre executors, así que con 4 núcleos o con 400 esa tarea tarda lo mismo.
+Lo grave es que **agregar más máquinas no lo arregla**: una clave no se puede repartir entre executors, así que con 6 núcleos o con 600 esa tarea tarda lo mismo.
 
 | | Sin sesgo | Con sesgo |
 |:---|:---|:---|
@@ -33,31 +33,31 @@ Por eso la celda siguiente **fabrica** el caso de la consigna. A cada fila se le
 
 ### La tarea rezagada, medida
 
-`faja_1` concentra **4.698.974 filas (47,0 %)**. La misma agregación, con y sin *salting*, sobre 8 particiones:
+`faja_1` concentra **4.698.974 filas (47,0 %)**. La misma agregación, con y sin *salting*, sobre 12 particiones:
 
 | Lo que medimos | Sin *salting* | Con *salting* |
 |:---|---:|---:|
-| Filas de la tarea más cargada | 5.243.278 (52,4 %) | 1.790.754 (17,9 %) |
-| Duración de la tarea más lenta | **792 ms** | **404 ms** |
-| Duración mediana de las tareas | 136 ms | 251 ms |
-| Tarea más lenta frente a la mediana | **5,8×** | 1,6× |
-| Tiempo de la consulta (mediana de 3) | **1,60 s** | 1,67 s |
+| Filas de la tarea más cargada | 5.214.599 (52,1 %) | 1.605.409 (16,1 %) |
+| Duración de la tarea más lenta | **1.142 ms** | **600 ms** |
+| Duración mediana de las tareas | 151 ms | 288 ms |
+| Tarea más lenta frente a la mediana | **7,6×** | 2,1× |
+| Tiempo de la consulta (mediana de 3) | 2,41 s | **2,28 s** |
 
 <div align="center">
-<img src="img/ui_4040_sesgo_sin_salting.png" alt="Resumen de tareas de la etapa 168: mediana de 136 ms y máximo de 0,8 s con 5.243.278 filas" width="720"><br>
-<em>Figura 4. Sin <em>salting</em> (etapa 168 en <code>localhost:4040</code>, captura de nuestra ejecución de referencia): la mediana de las tareas lee 715.986 filas en 136 ms, pero la más cargada lee 5.243.278 y tarda 0,8 s. Esa es la tarea rezagada.</em>
+<img src="img/ui_4040_sesgo_sin_salting.png" alt="Resumen de tareas de la etapa 169: mediana de 160 ms y máximo de 1,1 s con 5.214.599 filas" width="720"><br>
+<em>Figura 4. Sin <em>salting</em> (etapa 169 en <code>localhost:4040</code>, captura de nuestra ejecución de referencia): la mediana de las tareas lee 486.848 filas en 160 ms, pero la más cargada lee 5.214.599 y tarda 1,1 s. Esa es la tarea rezagada.</em>
 </div>
 
 <div align="center">
-<img src="img/ui_4040_sesgo_con_salting.png" alt="Resumen de tareas de la etapa 170: máximo de 0,4 s con 1.790.754 filas" width="720"><br>
-<em>Figura 5. Con <em>salting</em> (etapa 170, captura de nuestra ejecución de referencia): la tarea más cargada baja a 1.790.754 filas y 0,4 s. Las tareas quedan mucho más parejas.</em>
+<img src="img/ui_4040_sesgo_con_salting.png" alt="Resumen de tareas de la etapa 171: máximo de 0,6 s con 1.605.409 filas" width="720"><br>
+<em>Figura 5. Con <em>salting</em> (etapa 171, captura de nuestra ejecución de referencia): la tarea más cargada baja a 1.605.409 filas y 0,6 s. Las tareas quedan mucho más parejas.</em>
 </div>
 
 **Qué muestran las cifras:**
 
-- **Sin *salting*, una sola tarea hace más de la mitad del trabajo.** Lee el 52,4 % de las filas (todo `faja_1`, más las claves que el hash le asignó a la misma partición) y tarda 5,8 veces la mediana. Las otras 7 tareas terminan rápido y sus núcleos quedan esperando.
-- **Con *salting*, la carga se reparte.** La tarea más cargada lee 2,9 veces menos filas y tarda 2 veces menos. Queda 1,6 veces sobre la mediana y no 5,8: las 16 sub-claves se reparten en 8 particiones, así que algunas comparten partición.
-- **En esta corrida la consulta completa no fue más rápida (0,96×)**: la segunda agregación que agrega el *salting* costó más de lo que ahorró repartir la tarea rezagada. El `assert` de la celda confirma que las medias y los conteos por clave son **idénticos** a los de la versión sin *salting*.
+- **Sin *salting*, una sola tarea hace más de la mitad del trabajo.** Lee el 52,1 % de las filas (todo `faja_1`, más las claves que el hash le asignó a la misma partición) y tarda 7,6 veces la mediana. Las otras 11 tareas terminan rápido y sus núcleos quedan esperando.
+- **Con *salting*, la carga se reparte.** La tarea más cargada lee 3,2 veces menos filas y tarda 1,9 veces menos. Queda 2,1 veces sobre la mediana y no 7,6: las 16 sub-claves se reparten en 12 particiones, así que algunas comparten partición.
+- **La consulta completa es 1,06 veces más rápida**, a pesar de que el *salting* agrega una segunda agregación. El `assert` de la celda confirma que las medias y los conteos por clave son **idénticos** a los de la versión sin *salting*.
 
 > **Ojo.** El *salting* no es gratis: suma una etapa y un *shuffle* más. Conviene cuando la tarea rezagada pesa más que ese costo extra, es decir, cuando una clave tiene una parte grande de los datos.
 

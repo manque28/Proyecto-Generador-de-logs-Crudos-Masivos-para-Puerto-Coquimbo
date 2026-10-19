@@ -46,8 +46,8 @@ Cada lectura de `REEFER_S3_10` aparece 4 veces, una por ventana: son **486.486 f
 
 | *Join* | Filas resultantes | Lecturas marcadas | Tiempo |
 |:---|---:|---:|---:|
-| Ingenuo, solo por equipo | 10.486.486 | — | 0,9 s |
-| ***Range join* con *broadcast*** | **10.000.000** | **216.218** | **0,7 s** |
+| Ingenuo, solo por equipo | 10.486.486 | — | 1,4 s |
+| ***Range join* con *broadcast*** | **10.000.000** | **216.218** | **1,1 s** |
 
 El `assert` comprueba que el *range join* devuelve las mismas 10.000.000 de filas de entrada.
 

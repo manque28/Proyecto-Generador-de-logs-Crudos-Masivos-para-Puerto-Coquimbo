@@ -52,7 +52,7 @@ La verificación por familia confirma que siguen estando las 185 series:
 | `BASCULA` | 1 | 54.054 | 0,5 % |
 | **Total** | **185** | **10.000.000** | **100 %** |
 
-Toda la sección tomó 14,7 s. Al terminar se libera el cache de los datos crudos, y desde aquí el notebook trabaja sobre los datos limpios.
+Toda la sección tomó 20,1 s. Al terminar se libera el cache de los datos crudos, y desde aquí el notebook trabaja sobre los datos limpios.
 
 > **Idea clave.** A escala, limpiar es clasificar y demostrar con conteos que no se perdió nada, no borrar lo que molesta.
 

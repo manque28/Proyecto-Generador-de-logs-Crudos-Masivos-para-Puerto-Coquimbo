@@ -20,7 +20,7 @@ Las tres decisiones de esta escritura:
 | Decisión | Qué elegimos | Por qué |
 |:---|:---|:---|
 | Columna de partición | `fecha` (el día) | Son 10 carpetas. Por `timestamp` serían 54.055 carpetas con 185 filas cada una: miles de archivos diminutos. |
-| Cómo reducir particiones | `coalesce(4)` | Une particiones que ya existen, **sin *shuffle***. `repartition` movería los 10 millones de filas por la red. |
+| Cómo reducir particiones | `coalesce(6)` | Une particiones que ya existen, **sin *shuffle***. `repartition` movería los 10 millones de filas por la red. |
 | Orden dentro de cada partición | Por fecha, serie y timestamp | Los valores parecidos quedan juntos y se comprimen mejor. |
 
 > **Nota.** `repartition` sí conviene cuando hay que **aumentar** el número de particiones o volver a equilibrar datos muy desparejos. Para reducir, `coalesce` es más barato.
@@ -34,22 +34,22 @@ salida_fase2/
 ├── descartes/                  cuarentena de la limpieza (0 filas)
 └── eventos_limpios/
     ├── _SUCCESS                marca de escritura completa
-    ├── fecha=2026-01-01/       4 archivos .parquet
-    ├── fecha=2026-01-02/       4 archivos .parquet
+    ├── fecha=2026-01-01/       6 archivos .parquet
+    ├── fecha=2026-01-02/       6 archivos .parquet
     ├── ...
-    └── fecha=2026-01-10/       4 archivos .parquet
+    └── fecha=2026-01-10/       6 archivos .parquet
 ```
 
 | Lo que medimos | Resultado |
 |:---|---:|
 | Carpetas de partición | 10 |
-| Archivos Parquet | 40 |
-| Volumen en Parquet | 34,2 MiB |
+| Archivos Parquet | 60 |
+| Volumen en Parquet | 34,5 MiB |
 | Volumen original en JSONL | 1.212,6 MiB |
-| **Reducción** | **35,5×** |
-| Tiempo de escritura | 16,5 s |
+| **Reducción** | **35,1×** |
+| Tiempo de escritura | 27,9 s |
 
-Son 40 archivos porque cada una de las 4 tareas de escritura deja un archivo por día (4 × 10). Los mismos 10 millones de lecturas ocupan 35 veces menos.
+Son 60 archivos porque cada una de las 6 tareas de escritura deja un archivo por día (6 × 10). Los mismos 10 millones de lecturas ocupan 35 veces menos.
 
 <!-- ===== CELDA 6.3 · INTERPRETACIÓN · antes de Hito 5.5 ===== -->
 
@@ -63,7 +63,7 @@ Escribir no basta: releemos la salida y la comparamos con los datos limpios que 
 | Columnas | Las mismas 7, más `fecha` | Sí |
 | Suma de control | Misma suma de `value`, mismo período y 185 series | Sí |
 
-Contar los 10 millones de filas desde Parquet tomó **2,3 s**. La primera lectura del JSONL había tomado 13,4 s, aunque esa además cargaba el cache.
+Contar los 10 millones de filas desde Parquet tomó **4,4 s**. La primera lectura del JSONL había tomado 17,5 s, aunque esa además cargaba el cache.
 
 ### La poda de particiones, medida
 
@@ -72,7 +72,7 @@ Consultamos un solo día, el 6 de enero:
 | Lo que medimos | Resultado |
 |:---|---:|
 | Filas del día | 1.065.600 |
-| Tiempo | 0,16 s |
+| Tiempo | 0,26 s |
 | Carpetas abiertas | 1 de 10 |
 
 El plan lo confirma con `PartitionFilters: [fecha = 2026-01-06]`: Spark descartó las otras nueve carpetas antes de leer un solo byte. El conteo además calza con lo esperado: 185 series × 5.760 lecturas diarias (una cada 15 s) = 1.065.600.
