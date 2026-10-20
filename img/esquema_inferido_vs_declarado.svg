@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 460" font-family="Poppins, Segoe UI, Helvetica, Arial, sans-serif">
+  <rect width="1280" height="460" fill="#FFFFFF"/>
+
+  <!-- sin esquema -->
+  <text x="60" y="48" font-size="22" font-weight="800" fill="#0F2E5C">Sin esquema · <tspan font-style="italic" fill="#2F80ED">Spark adivina los tipos</tspan></text>
+  <line x1="120" y1="104" x2="900" y2="104" stroke="#0F2E5C" stroke-width="3"/>
+  <circle cx="140" cy="104" r="22" fill="#1E4FA3"/>
+  <circle cx="520" cy="104" r="22" fill="#1E4FA3"/>
+  <g font-size="17" font-weight="800" fill="#FFFFFF" text-anchor="middle">
+    <text x="140" y="110">1</text>
+    <text x="520" y="110">2</text>
+  </g>
+  <rect x="60" y="138" width="360" height="74" fill="#D6E4F5"/>
+  <text x="80" y="168" font-size="17" font-weight="700" fill="#0F2E5C">Lectura 1 · lee todos los archivos</text>
+  <text x="80" y="194" font-size="14" fill="#231F20">solo para adivinar los tipos (no se guarda)</text>
+  <rect x="440" y="138" width="360" height="74" fill="#EAF1FA"/>
+  <text x="460" y="168" font-size="17" font-weight="700" fill="#0F2E5C">Lectura 2 · lee todo otra vez</text>
+  <text x="460" y="194" font-size="14" fill="#231F20">para la primera acción</text>
+  <rect x="900" y="78" width="320" height="134" fill="#1E4FA3"/>
+  <text x="1060" y="156" font-size="30" font-weight="800" fill="#FFFFFF" text-anchor="middle">= 2 lecturas</text>
+
+  <line x1="60" y1="244" x2="1220" y2="244" stroke="#0F2E5C" stroke-width="1.5"/>
+
+  <!-- con esquema -->
+  <text x="60" y="290" font-size="22" font-weight="800" fill="#0F2E5C">Con esquema declarado · <tspan font-style="italic" fill="#2F80ED">los tipos ya se conocen</tspan></text>
+  <line x1="120" y1="344" x2="900" y2="344" stroke="#0F2E5C" stroke-width="3"/>
+  <circle cx="140" cy="344" r="22" fill="#FFFFFF" stroke="#1E4FA3" stroke-width="3"/>
+  <circle cx="520" cy="344" r="22" fill="#1E4FA3"/>
+  <text x="140" y="350" font-size="17" font-weight="800" fill="#1E4FA3" text-anchor="middle">0</text>
+  <text x="520" y="350" font-size="17" font-weight="800" fill="#FFFFFF" text-anchor="middle">1</text>
+  <rect x="60" y="378" width="360" height="74" fill="#EAF1FA"/>
+  <text x="80" y="408" font-size="17" font-weight="700" fill="#0F2E5C">Tipos escritos por nosotros</text>
+  <text x="80" y="434" font-size="14" fill="#231F20">no se lee ningún archivo</text>
+  <rect x="440" y="378" width="360" height="74" fill="#D6E4F5"/>
+  <text x="460" y="408" font-size="17" font-weight="700" fill="#0F2E5C">Lectura única</text>
+  <text x="460" y="434" font-size="14" fill="#231F20">para la primera acción</text>
+  <rect x="900" y="318" width="320" height="134" fill="#EAF1FA"/>
+  <text x="1060" y="396" font-size="30" font-weight="800" fill="#0F2E5C" text-anchor="middle">= 1 lectura</text>
+</svg>

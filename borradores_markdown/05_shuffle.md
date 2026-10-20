@@ -1,15 +1,14 @@
 <!-- ===== CELDA 5.1 · CONTEXTO · antes de Hito 4 ===== -->
 
-## Diagnóstico del shuffle
+<div id="Diagnostico-del-shuffle"></div>
 
-**Qué hacemos:** tomamos una consulta real (el resumen por hora de cada serie), leemos su plan físico y medimos la misma consulta con cuatro configuraciones de particiones.
+<div style="display:flex;justify-content:space-between;align-items:center;margin:4px 0 2px 0;font-family:'Poppins','Segoe UI',Helvetica,Arial,sans-serif;"><span style="font-size:0.72em;text-transform:uppercase;letter-spacing:0.08em;color:#0F2E5C;font-weight:600;">Laboratorio Terminal Puerto Coquimbo · Sitio 3 · Programación Avanzada</span><span style="font-size:0.72em;letter-spacing:0.08em;font-weight:800;color:#0F2E5C;border:2px solid #0F2E5C;padding:3px 10px;">ULS · BIG DATA</span></div>
 
-**Por qué importa en Big Data:** no todas las operaciones cuestan lo mismo en un clúster.
+## <span style="font-family:'Poppins','Segoe UI',Helvetica,Arial,sans-serif;color:#0F2E5C;font-weight:800;">Diagnóstico </span><em style="font-family:'Poppins','Segoe UI',Helvetica,Arial,sans-serif;color:#2F80ED;font-weight:700;">del shuffle</em>
 
-| Tipo | Ejemplos | Qué necesita |
-|:---|:---|:---|
-| **Estrecha** | `filter`, `select`, `withColumn` | Cada partición se procesa sola, en el executor donde ya está. |
-| **Ancha** | `groupBy`, `dropDuplicates`, `orderBy`, `join` | Juntar filas de la misma clave que están en particiones distintas. |
+<div style="display:flex;flex-wrap:wrap;margin:12px 0 20px 0;font-family:'Poppins','Segoe UI',Helvetica,Arial,sans-serif;"><div style="flex:1;min-width:260px;background-color:#1E4FA3;color:#FFFFFF;padding:20px 22px;line-height:1.6;display:flex;gap:14px;align-items:flex-start;"><span style="display:inline-block;flex:0 0 30px;width:30px;height:30px;border-radius:50%;background-color:#FFFFFF;text-align:center;line-height:30px;font-weight:800;color:#1E4FA3;font-family:'Poppins','Segoe UI',Helvetica,Arial,sans-serif;">→</span><div><b>Qué hacemos:</b> tomamos una consulta real (el resumen por hora de cada serie), leemos su plan físico y medimos la misma consulta con cuatro configuraciones de particiones.</div></div><div style="flex:1;min-width:260px;background-color:#D6E4F5;color:#0F2E5C;padding:20px 22px;line-height:1.6;"><b>Por qué importa en Big Data:</b> no todas las operaciones cuestan lo mismo en un clúster.</div></div>
+
+<table style="width:100%;border-collapse:collapse;margin:10px 0 18px 0;font-size:0.95em;"><thead><tr><th style="font-family:'Poppins','Segoe UI',Helvetica,Arial,sans-serif;background-color:#0F2E5C;color:#FFFFFF;font-weight:600;padding:10px 14px;border:none;text-align:left;">Tipo</th><th style="font-family:'Poppins','Segoe UI',Helvetica,Arial,sans-serif;background-color:#0F2E5C;color:#FFFFFF;font-weight:600;padding:10px 14px;border:none;text-align:left;">Ejemplos</th><th style="font-family:'Poppins','Segoe UI',Helvetica,Arial,sans-serif;background-color:#0F2E5C;color:#FFFFFF;font-weight:600;padding:10px 14px;border:none;text-align:left;">Qué necesita</th></tr></thead><tbody><tr><td style="font-family:'Poppins','Segoe UI',Helvetica,Arial,sans-serif;background-color:#FFFFFF;color:#231F20;padding:10px 14px;border:none;text-align:left;vertical-align:top;"><b>Estrecha</b></td><td style="font-family:'Poppins','Segoe UI',Helvetica,Arial,sans-serif;background-color:#FFFFFF;color:#231F20;padding:10px 14px;border:none;text-align:left;vertical-align:top;"><code style="font-family:'JetBrains Mono',Consolas,Menlo,monospace;font-size:0.88em;background-color:#FFFFFF;color:#0F2E5C;border:1px solid #D6E4F5;padding:1px 6px;border-radius:3px;">filter</code>, <code style="font-family:'JetBrains Mono',Consolas,Menlo,monospace;font-size:0.88em;background-color:#FFFFFF;color:#0F2E5C;border:1px solid #D6E4F5;padding:1px 6px;border-radius:3px;">select</code>, <code style="font-family:'JetBrains Mono',Consolas,Menlo,monospace;font-size:0.88em;background-color:#FFFFFF;color:#0F2E5C;border:1px solid #D6E4F5;padding:1px 6px;border-radius:3px;">withColumn</code></td><td style="font-family:'Poppins','Segoe UI',Helvetica,Arial,sans-serif;background-color:#FFFFFF;color:#231F20;padding:10px 14px;border:none;text-align:left;vertical-align:top;">Cada partición se procesa sola, en el executor donde ya está.</td></tr><tr><td style="font-family:'Poppins','Segoe UI',Helvetica,Arial,sans-serif;background-color:#EAF1FA;color:#231F20;padding:10px 14px;border:none;text-align:left;vertical-align:top;"><b>Ancha</b></td><td style="font-family:'Poppins','Segoe UI',Helvetica,Arial,sans-serif;background-color:#EAF1FA;color:#231F20;padding:10px 14px;border:none;text-align:left;vertical-align:top;"><code style="font-family:'JetBrains Mono',Consolas,Menlo,monospace;font-size:0.88em;background-color:#FFFFFF;color:#0F2E5C;border:1px solid #D6E4F5;padding:1px 6px;border-radius:3px;">groupBy</code>, <code style="font-family:'JetBrains Mono',Consolas,Menlo,monospace;font-size:0.88em;background-color:#FFFFFF;color:#0F2E5C;border:1px solid #D6E4F5;padding:1px 6px;border-radius:3px;">dropDuplicates</code>, <code style="font-family:'JetBrains Mono',Consolas,Menlo,monospace;font-size:0.88em;background-color:#FFFFFF;color:#0F2E5C;border:1px solid #D6E4F5;padding:1px 6px;border-radius:3px;">orderBy</code>, <code style="font-family:'JetBrains Mono',Consolas,Menlo,monospace;font-size:0.88em;background-color:#FFFFFF;color:#0F2E5C;border:1px solid #D6E4F5;padding:1px 6px;border-radius:3px;">join</code></td><td style="font-family:'Poppins','Segoe UI',Helvetica,Arial,sans-serif;background-color:#EAF1FA;color:#231F20;padding:10px 14px;border:none;text-align:left;vertical-align:top;">Juntar filas de la misma clave que están en particiones distintas.</td></tr></tbody></table>
 
 Para juntar esas filas Spark hace un *shuffle*: cada executor ordena sus datos por clave, los escribe, los envía por la red y otro executor los vuelve a leer. Es lo más caro de un job, porque todo lo demás ocurre en memoria dentro de una misma máquina.
 
@@ -18,7 +17,7 @@ Dos ajustes controlan ese costo:
 - `spark.sql.shuffle.partitions`: en cuántas particiones quedan los datos después del *shuffle*. Por defecto son **200**.
 - **AQE** (*Adaptive Query Execution*): Spark mira el tamaño real de los datos mientras ejecuta y corrige el plan, por ejemplo uniendo particiones que quedaron casi vacías.
 
-> **Nota.** Cada configuración se mide con la mediana de 3 corridas y con una escritura `noop`, que ejecuta la consulta completa pero no guarda nada. Así medimos solo el cómputo.
+<div style="background-color:#EAF1FA;border-left:6px solid #2F80ED;color:#231F20;padding:14px 20px;margin:14px 0;line-height:1.55;font-family:'Poppins','Segoe UI',Helvetica,Arial,sans-serif;"><i style="color:#2F80ED;font-weight:700;">Nota.</i> Cada configuración se mide con la mediana de 3 corridas y con una escritura <code style="font-family:'JetBrains Mono',Consolas,Menlo,monospace;font-size:0.88em;background-color:#FFFFFF;color:#0F2E5C;border:1px solid #D6E4F5;padding:1px 6px;border-radius:3px;">noop</code>, que ejecuta la consulta completa pero no guarda nada. Así medimos solo el cómputo.</div>
 
 <!-- ===== CELDA 5.2 · INTERPRETACIÓN · antes de Hito 4.3 ===== -->
 
@@ -69,6 +68,6 @@ El hito 4.4 aplica **12 particiones sin AQE** al resto del notebook. Esa configu
 
 > **Idea clave.** El *shuffle* es el costo que hay que vigilar, y el número de particiones tiene que calzar con el tamaño real de los datos: ni 200 tareas vacías ni unas pocas tareas gigantes.
 
-[↑ Volver al índice](#Índice)
+[↑ Volver al índice](#Indice)
 
 ---

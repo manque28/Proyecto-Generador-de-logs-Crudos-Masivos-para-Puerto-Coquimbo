@@ -1,86 +1,78 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 600" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" font-family="Poppins, Segoe UI, Helvetica, Arial, sans-serif">
   <defs>
-    <marker id="flecha" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-      <path d="M0,0 L10,5 L0,10 z" fill="#475569"/>
-    </marker>
-    <marker id="flecha-datos" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-      <path d="M0,0 L10,5 L0,10 z" fill="#0f766e"/>
+    <marker id="punta" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#0F2E5C"/>
     </marker>
   </defs>
 
-  <rect width="960" height="600" fill="#ffffff"/>
+  <rect width="1280" height="720" fill="#FFFFFF"/>
 
-  <!-- equipo anfitrion -->
-  <rect x="16" y="16" width="928" height="568" rx="14" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="6 5"/>
-  <text x="36" y="44" font-size="14" fill="#64748b">Un solo equipo · Docker Desktop · red red-spark-lab</text>
+  <!-- cabecera de lamina -->
+  <text x="80" y="46" font-size="13" font-weight="600" letter-spacing="1.2" fill="#0F2E5C">ENTORNO: UN SOLO EQUIPO · DOCKER DESKTOP · RED: RED-SPARK-LAB</text>
+  <line x1="80" y1="60" x2="1200" y2="60" stroke="#0F2E5C" stroke-width="1.5"/>
+
+  <!-- flechas, debajo de las tarjetas -->
+  <line x1="446" y1="160" x2="832" y2="160" stroke="#0F2E5C" stroke-width="4" marker-end="url(#punta)"/>
+  <line x1="1080" y1="236" x2="1080" y2="318" stroke="#0F2E5C" stroke-width="4" marker-end="url(#punta)"/>
+  <line x1="900" y1="236" x2="700" y2="318" stroke="#0F2E5C" stroke-width="4" marker-end="url(#punta)"/>
+  <line x1="200" y1="240" x2="200" y2="318" stroke="#0F2E5C" stroke-width="4" marker-start="url(#punta)" marker-end="url(#punta)"/>
+  <line x1="380" y1="240" x2="580" y2="318" stroke="#0F2E5C" stroke-width="4" marker-start="url(#punta)" marker-end="url(#punta)"/>
+  <line x1="245" y1="496" x2="245" y2="546" stroke="#0F2E5C" stroke-width="4" marker-start="url(#punta)" marker-end="url(#punta)"/>
+  <line x1="640" y1="496" x2="640" y2="546" stroke="#0F2E5C" stroke-width="4" marker-start="url(#punta)" marker-end="url(#punta)"/>
+  <line x1="1035" y1="496" x2="1035" y2="546" stroke="#0F2E5C" stroke-width="4" marker-start="url(#punta)" marker-end="url(#punta)"/>
 
   <!-- driver -->
-  <rect x="40" y="72" width="270" height="150" rx="10" fill="#eef2ff" stroke="#6366f1" stroke-width="2"/>
-  <text x="58" y="100" font-size="17" font-weight="700" fill="#312e81">Driver</text>
-  <text x="58" y="122" font-size="13" fill="#3730a3">contenedor jupyter</text>
-  <text x="58" y="150" font-size="13" fill="#1e293b">Notebook fase2_pyspark.ipynb</text>
-  <text x="58" y="170" font-size="13" fill="#1e293b">Arma el plan y reparte tareas</text>
-  <text x="58" y="190" font-size="13" fill="#1e293b">Recibe solo resultados resumidos</text>
-  <text x="58" y="210" font-size="12" fill="#64748b">:8889 JupyterLab · :4040 UI del job</text>
+  <rect x="80" y="86" width="360" height="148" fill="#EAF1FA"/>
+  <circle cx="134" cy="132" r="28" fill="#FFFFFF"/>
+  <rect x="120" y="120" width="28" height="18" rx="2" fill="none" stroke="#0F2E5C" stroke-width="2.5"/>
+  <path d="M113,143 h42 M119,147 h30" stroke="#0F2E5C" stroke-width="2.5"/>
+  <text x="176" y="141" font-size="28" font-weight="800" fill="#0F2E5C">Driver</text>
+  <text x="104" y="188" font-size="18" fill="#231F20">• Planifica y reparte tareas</text>
+  <text x="104" y="218" font-size="18" fill="#231F20">• Recibe resultados</text>
 
   <!-- master -->
-  <rect x="650" y="72" width="270" height="150" rx="10" fill="#fff7ed" stroke="#ea580c" stroke-width="2"/>
-  <text x="668" y="100" font-size="17" font-weight="700" fill="#7c2d12">Master</text>
-  <text x="668" y="122" font-size="13" fill="#9a3412">contenedor spark-master</text>
-  <text x="668" y="150" font-size="13" fill="#1e293b">Registra los workers</text>
-  <text x="668" y="170" font-size="13" fill="#1e293b">Asigna núcleos y memoria</text>
-  <text x="668" y="190" font-size="13" fill="#1e293b">a cada aplicación</text>
-  <text x="668" y="210" font-size="12" fill="#64748b">spark://spark-master:7077 · :8080 UI</text>
-
-  <!-- driver -> master -->
-  <line x1="312" y1="130" x2="646" y2="130" stroke="#475569" stroke-width="2" marker-end="url(#flecha)"/>
-  <text x="479" y="120" font-size="13" fill="#334155" text-anchor="middle">1 · pide recursos</text>
+  <rect x="840" y="86" width="360" height="148" fill="#D6E4F5"/>
+  <circle cx="894" cy="132" r="28" fill="#FFFFFF"/>
+  <rect x="880" y="118" width="28" height="11" fill="none" stroke="#0F2E5C" stroke-width="2.5"/>
+  <rect x="880" y="135" width="28" height="11" fill="none" stroke="#0F2E5C" stroke-width="2.5"/>
+  <circle cx="887" cy="123.5" r="2" fill="#0F2E5C"/>
+  <circle cx="887" cy="140.5" r="2" fill="#0F2E5C"/>
+  <text x="936" y="141" font-size="28" font-weight="800" fill="#0F2E5C">Master</text>
+  <text x="864" y="188" font-size="18" fill="#231F20">• Registra workers</text>
+  <text x="864" y="218" font-size="18" fill="#231F20">• Asigna recursos</text>
 
   <!-- workers -->
-  <g>
-    <rect x="40" y="290" width="270" height="140" rx="10" fill="#f0fdf4" stroke="#16a34a" stroke-width="2"/>
-    <text x="58" y="318" font-size="17" font-weight="700" fill="#14532d">Worker 1</text>
-    <text x="58" y="340" font-size="13" fill="#166534">2 núcleos · 2 GB</text>
-    <rect x="58" y="356" width="234" height="56" rx="8" fill="#ffffff" stroke="#16a34a"/>
-    <text x="175" y="380" font-size="14" font-weight="600" fill="#14532d" text-anchor="middle">Executor</text>
-    <text x="175" y="400" font-size="12" fill="#334155" text-anchor="middle">hasta 2 tareas a la vez</text>
+  <rect x="80" y="324" width="330" height="168" fill="#D6E4F5"/>
+  <rect x="475" y="324" width="330" height="168" fill="#EAF1FA"/>
+  <rect x="870" y="324" width="330" height="168" fill="#D6E4F5"/>
+  <g font-weight="800" font-size="24" fill="#0F2E5C" text-anchor="middle">
+    <text x="245" y="378">Worker 1</text>
+    <text x="640" y="378">Worker 2</text>
+    <text x="1035" y="378">Worker 3</text>
   </g>
-  <g>
-    <rect x="345" y="290" width="270" height="140" rx="10" fill="#f0fdf4" stroke="#16a34a" stroke-width="2"/>
-    <text x="363" y="318" font-size="17" font-weight="700" fill="#14532d">Worker 2</text>
-    <text x="363" y="340" font-size="13" fill="#166534">2 núcleos · 2 GB</text>
-    <rect x="363" y="356" width="234" height="56" rx="8" fill="#ffffff" stroke="#16a34a"/>
-    <text x="480" y="380" font-size="14" font-weight="600" fill="#14532d" text-anchor="middle">Executor</text>
-    <text x="480" y="400" font-size="12" fill="#334155" text-anchor="middle">hasta 2 tareas a la vez</text>
-  </g>
-  <g>
-    <rect x="650" y="290" width="270" height="140" rx="10" fill="#f0fdf4" stroke="#16a34a" stroke-width="2"/>
-    <text x="668" y="318" font-size="17" font-weight="700" fill="#14532d">Worker 3</text>
-    <text x="668" y="340" font-size="13" fill="#166534">2 núcleos · 2 GB</text>
-    <rect x="668" y="356" width="234" height="56" rx="8" fill="#ffffff" stroke="#16a34a"/>
-    <text x="785" y="380" font-size="14" font-weight="600" fill="#14532d" text-anchor="middle">Executor</text>
-    <text x="785" y="400" font-size="12" fill="#334155" text-anchor="middle">hasta 2 tareas a la vez</text>
+  <rect x="105" y="402" width="280" height="64" fill="#FFFFFF"/>
+  <rect x="500" y="402" width="280" height="64" fill="#FFFFFF"/>
+  <rect x="895" y="402" width="280" height="64" fill="#FFFFFF"/>
+  <g text-anchor="middle">
+    <text x="245" y="441" font-size="18" font-weight="700" fill="#0F2E5C">Executor</text>
+    <text x="640" y="441" font-size="18" font-weight="700" fill="#0F2E5C">Executor</text>
+    <text x="1035" y="441" font-size="18" font-weight="700" fill="#0F2E5C">Executor</text>
   </g>
 
-  <!-- master -> workers -->
-  <line x1="785" y1="224" x2="785" y2="286" stroke="#475569" stroke-width="2" marker-end="url(#flecha)"/>
-  <line x1="740" y1="224" x2="500" y2="286" stroke="#475569" stroke-width="2" marker-end="url(#flecha)"/>
-  <text x="812" y="262" font-size="13" fill="#334155">2 · lanza executors</text>
+  <!-- badges de los pasos -->
+  <rect x="540" y="142" width="200" height="36" rx="18" fill="#2F80ED"/>
+  <text x="640" y="166" font-size="16" font-weight="700" fill="#FFFFFF" text-anchor="middle">1 · Pide recursos</text>
+  <rect x="24" y="261" width="352" height="38" rx="19" fill="#2F80ED"/>
+  <text x="200" y="286" font-size="16" font-weight="700" fill="#FFFFFF" text-anchor="middle">3 · Envía tareas y recibe resultados</text>
+  <rect x="966" y="261" width="228" height="36" rx="18" fill="#2F80ED"/>
+  <text x="1080" y="285" font-size="16" font-weight="700" fill="#FFFFFF" text-anchor="middle">2 · Lanza ejecutores</text>
+  <rect x="662" y="503" width="178" height="34" rx="17" fill="#2F80ED"/>
+  <text x="751" y="526" font-size="15" font-weight="700" fill="#FFFFFF" text-anchor="middle">4 · Lee / Escribe</text>
 
-  <!-- driver <-> executors -->
-  <line x1="175" y1="224" x2="175" y2="286" stroke="#475569" stroke-width="2" marker-start="url(#flecha)" marker-end="url(#flecha)"/>
-  <line x1="250" y1="224" x2="440" y2="286" stroke="#475569" stroke-width="2" marker-start="url(#flecha)" marker-end="url(#flecha)"/>
-  <text x="34" y="262" font-size="13" fill="#334155">3 · tareas ↓ resultados ↑</text>
-
-  <!-- volumen compartido -->
-  <rect x="40" y="482" width="880" height="84" rx="10" fill="#f0fdfa" stroke="#0f766e" stroke-width="2"/>
-  <text x="480" y="512" font-size="16" font-weight="700" fill="#134e4a" text-anchor="middle">Volumen compartido /opt/workspace (misma ruta en todos los contenedores)</text>
-  <text x="480" y="538" font-size="13" fill="#1e293b" text-anchor="middle">data/raw/w16/ · 16 archivos .jsonl · 1,18 GiB   →   salida_fase2/ · Parquet particionado por día</text>
-  <text x="480" y="558" font-size="12" fill="#0f766e" text-anchor="middle">Cada executor lee y escribe sus propios archivos: los datos no pasan por el driver</text>
-
-  <!-- executors <-> volumen -->
-  <line x1="175" y1="432" x2="175" y2="478" stroke="#0f766e" stroke-width="2.5" marker-start="url(#flecha-datos)" marker-end="url(#flecha-datos)"/>
-  <line x1="480" y1="432" x2="480" y2="478" stroke="#0f766e" stroke-width="2.5" marker-start="url(#flecha-datos)" marker-end="url(#flecha-datos)"/>
-  <line x1="785" y1="432" x2="785" y2="478" stroke="#0f766e" stroke-width="2.5" marker-start="url(#flecha-datos)" marker-end="url(#flecha-datos)"/>
-  <text x="196" y="462" font-size="12" fill="#0f766e">4 · lee / escribe</text>
+  <!-- volumen compartido: dos barras planas apiladas -->
+  <rect x="80" y="552" width="1120" height="62" fill="#2F80ED"/>
+  <text x="640" y="591" font-size="21" font-weight="800" fill="#FFFFFF" text-anchor="middle">Volumen compartido: /opt/workspace (misma ruta en todos los contenedores)</text>
+  <rect x="80" y="614" width="1120" height="76" fill="#0F2E5C"/>
+  <text x="640" y="646" font-size="17" fill="#EAF1FA" text-anchor="middle" font-family="JetBrains Mono, Consolas, Menlo, monospace">data/raw/w16/ (16 archivos .jsonl) ➔ salida_fase2/ (Parquet)</text>
+  <text x="640" y="674" font-size="14" font-style="italic" fill="#D6E4F5" text-anchor="middle">Los datos se leen y escriben directamente: no pasan por el driver</text>
 </svg>
