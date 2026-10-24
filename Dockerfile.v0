@@ -1,0 +1,13 @@
+# Dockerfile.v0: la version ingenua, solo como linea base de la tabla 2.5.
+# no usar en produccion; cada linea tiene un defecto a proposito:
+
+# base completa (~1 GB): trae compiladores y documentacion que no se usan al ejecutar
+FROM python:3.12
+WORKDIR /app
+# COPY . . antes de pip install: cambiar una linea de codigo invalida la cache
+# y reinstala todas las dependencias
+COPY . .
+RUN pip install -r requirements.txt
+# no hay USER: corre como root
+# CMD en forma shell: el PID 1 es /bin/sh, que no reenvia senales a python
+CMD python src/receptor_tcp.py
