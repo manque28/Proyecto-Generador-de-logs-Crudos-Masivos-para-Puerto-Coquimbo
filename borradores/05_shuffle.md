@@ -4,12 +4,12 @@
 
 | Config | Mediana (s) | Shuffle (MiB) | Tareas por etapa |
 |---|---|---|---|
-| 200 sin AQE | 3.11 | 1.9 | [16, 200] |
-| 200 con AQE | 1.44 | 1.9 | [16, 2] |
-| 6 sin AQE | 1.21 | 1.2 | [16, 6] |
-| 12 sin AQE | 1.16 | 1.2 | [16, 12] |
+| 200 sin AQE | 1.06 | 2.0 | [16, 200] |
+| 200 con AQE | 0.51 | 2.0 | [16, 2] |
+| 6 sin AQE | 0.45 | 1.2 | [16, 6] |
+| 12 sin AQE | 0.45 | 1.3 | [16, 12] |
 
-Configuracion elegida: **12 sin AQE** (2.68x frente a 200 sin AQE).
+Configuracion elegida: **12 sin AQE** (2.35x frente a 200 sin AQE).
 
 ## Hito 6.2: sesgo fabricado y salting en dos fases
 
@@ -18,7 +18,7 @@ sin combiner), 12 particiones, AQE off, N_SAL = 16.
 
 | Consulta | Mediana (s) | Tareas | Tarea mas cargada (filas) | Max tarea (ms) |
 |---|---|---|---|---|
-| sin salting | 2.41 | 12 | 5,214,599 (52.1%) | 1142 |
-| con salting | 2.28 | 12 | 1,605,409 (16.1%) | 600 |
+| sin salting | 1.22 | 12 | 5,214,599 (52.1%) | 726 |
+| con salting | 1.01 | 12 | 1,604,452 (16.0%) | 264 |
 
-Speedup del salting: 1.06x.
+Speedup del salting: 1.21x.

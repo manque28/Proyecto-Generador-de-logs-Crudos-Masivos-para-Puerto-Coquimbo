@@ -8,3 +8,7 @@ spark-warehouse/
 metastore_db/
 derby.log
 *.docx
+
+# notebooks individuales del laboratorio 11 (cada integrante entrega el suyo)
+fase3_lab11_feature_engineering.ipynb
+salida_fase3/

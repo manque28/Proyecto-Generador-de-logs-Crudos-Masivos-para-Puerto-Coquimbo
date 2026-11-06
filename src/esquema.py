@@ -25,9 +25,16 @@ completa.
 # el salto de linea va incluido para poder mandar la lista completa con
 # writelines, y no hay espacios en ningun separador porque son millones de
 # lineas y cada byte de mas se nota en el 1,4 GB final.
+#
+# fase 3: se agregan calidad_sensor (autodiagnostico del sensor en cada
+# lectura) y alimentador_id. el alimentador llega ya serializado desde el
+# simulador, "ALIM_S3_R1" con comillas o null sin comillas, porque solo los
+# reefers tienen alimentador y en el resto el campo es un null estructural.
+# la falla NO va aqui: la telemetria no sabe que el equipo esta fallando, eso
+# queda en la verdad de terreno que escribe el generador aparte.
 _PLANTILLA = (
     '{"timestamp":"%s","sensor_id":"%s","metric":"%s","value":%r,'
-    '"unit":"%s","worker_id":%d}\n'
+    '"unit":"%s","calidad_sensor":"%s","alimentador_id":%s,"worker_id":%d}\n'
 )
 
 
@@ -62,5 +69,7 @@ def linea_evento(timestamp_str, metadatos, worker_id):
         metadatos["metric"],
         value,
         metadatos["unit"],
+        metadatos["calidad_sensor"],
+        metadatos["alimentador_json"],
         worker_id,
     )

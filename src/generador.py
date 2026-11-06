@@ -96,7 +96,7 @@ def _marcas_de_tiempo(inicio_ms=None):
         t_ms += DT_MS
 
 
-def iter_eventos(n_eventos, semilla, worker_id, n_workers=1):
+def iter_eventos(n_eventos, semilla, worker_id, n_workers=1, verdad=None):
     """el nucleo de un worker, va largando lineas jsonl ya serializadas.
 
     n_eventos es el total del DATASET, no el cupo de este worker.
@@ -120,6 +120,13 @@ def iter_eventos(n_eventos, semilla, worker_id, n_workers=1):
     no toca disco ni sabe de archivos. worker_shard le pone encima el buffer y
     el archivo, y bench/experimento_gil.py lo consume en memoria para medir
     cpu puro.
+
+    fase 3, verdad de terreno: si verdad es una lista, despues de cada tick se
+    mira la falla activa de cada equipo (activo.ev.falla) y cada vez que cambia
+    se cierra el intervalo anterior. quedan tuplas
+    (sensor_id, t_inicio, t_fin, tipo_falla, severidad, severidad_num) con
+    intervalos semiabiertos [t_inicio, t_fin): t_fin es el primer tick en que
+    la falla ya no estaba. es el mismo criterio del range join de la fase 2.
     """
     # el rng se instancia dentro del proceso hijo, uno por worker
     activos = crear_activos(semilla, worker_id, n_workers)
@@ -132,6 +139,20 @@ def iter_eventos(n_eventos, semilla, worker_id, n_workers=1):
     armar_linea = linea_evento
     pares = list(zip(activos, posiciones))
 
+    # falla abierta de cada equipo: (tipo, severidad, severidad_num, t_inicio)
+    abiertas = [None] * len(activos)
+
+    def _anotar_fallas(timestamp_str):
+        for i, activo in enumerate(activos):
+            falla = activo.ev.falla
+            actual = abiertas[i]
+            tipo_actual = actual[0] if actual else None
+            if (falla[0] if falla else None) != tipo_actual:
+                if actual:
+                    verdad.append((activo.sensor_id, actual[3], timestamp_str,
+                                   actual[0], actual[1], actual[2]))
+                abiertas[i] = (*falla, timestamp_str) if falla else None
+
     base = 0                                   # indice global del tick actual
     while base < n_eventos:
         timestamp_str = next(reloj)
@@ -140,6 +161,8 @@ def iter_eventos(n_eventos, semilla, worker_id, n_workers=1):
             for activo, _ in pares:
                 for metadatos in activo.tick(DT_S):
                     yield armar_linea(timestamp_str, metadatos, worker_id)
+            if verdad is not None:
+                _anotar_fallas(timestamp_str)
         else:
             # ultimo tick: solo lo que cae antes del corte global
             limite = n_eventos - base
@@ -151,6 +174,15 @@ def iter_eventos(n_eventos, semilla, worker_id, n_workers=1):
                         break
                     yield armar_linea(timestamp_str, metadatos, worker_id)
         base += por_tick
+
+    # las fallas que seguian abiertas al terminar se cierran en el tick
+    # siguiente al ultimo, asi el intervalo cubre todas sus lecturas
+    if verdad is not None:
+        fin = next(reloj)
+        for i, actual in enumerate(abiertas):
+            if actual:
+                verdad.append((activos[i].sensor_id, actual[3], fin,
+                               actual[0], actual[1], actual[2]))
 
 
 def generar_eventos(n_eventos, semilla=42, worker_id=0, n_workers=1):
@@ -182,9 +214,10 @@ def worker_shard(wid, n_eventos, carpeta, semilla, n_workers=1):
     ruta = Path(carpeta) / f"part-{wid:03d}.jsonl"
     buf = []
     escritos = 0
+    verdad = []
 
     with open(ruta, "w", encoding="utf-8", newline="\n", buffering=4 * 1024 * 1024) as f:
-        for linea in iter_eventos(n_eventos, semilla, wid, n_workers):
+        for linea in iter_eventos(n_eventos, semilla, wid, n_workers, verdad):
             buf.append(linea)
             escritos += 1
 
@@ -196,6 +229,15 @@ def worker_shard(wid, n_eventos, carpeta, semilla, n_workers=1):
         # lo que quedo sin alcanzar el lote completo
         if buf:
             f.writelines(buf)
+
+    # fase 3: la verdad de terreno va en una carpeta hermana, verdad_<config>,
+    # y no junto a los .jsonl, para que la lectura de la telemetria (glob
+    # *.jsonl) no la mezcle. un csv por worker, igual que la opcion b
+    carpeta_verdad = Path(carpeta).parent / f"verdad_{Path(carpeta).name}"
+    carpeta_verdad.mkdir(parents=True, exist_ok=True)
+    with open(carpeta_verdad / f"part-{wid:03d}.csv", "w", encoding="utf-8", newline="\n") as fv:
+        fv.write("sensor_id,t_inicio,t_fin,tipo_falla,severidad,severidad_num\n")
+        fv.writelines(",".join(map(str, fila)) + "\n" for fila in verdad)
 
     # lo unico que vuelve al proceso padre son estadisticas y no
     # datos, por eso el costo de pickle de esta arquitectura es practicamente

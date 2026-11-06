@@ -44,6 +44,101 @@ def _alfa(dt_s, tau_s):
     return dt_s / (tau_s + dt_s)
 
 
+# fase 3: fallas conocidas. cada una es (tipo_falla, severidad, severidad_num).
+# la severidad va en texto y en numero para que el informe la lea facil y un
+# modelo la pueda ordenar; las dos son "la respuesta" y nunca van como feature
+FALLA_PUERTA = ("puerta_abierta", "baja", 1)
+FALLA_DESALINEAMIENTO = ("desalineamiento", "media", 2)
+FALLA_SOBRECORRIENTE = ("sobrecorriente", "media", 2)
+FALLA_COMPRESOR = ("falla_compresor", "alta", 3)
+
+
+class EstadoSensor:
+    """calidad del sensor y falla activa del equipo (fase 3).
+
+    cada activo tiene uno. hace dos cosas por tick:
+
+      - calidad_sensor: el autodiagnostico que el sensor manda en cada lectura,
+        buena, degradada o mala. mientras no es buena la lectura sale con mas
+        ruido, que es justamente por lo que no se le puede creer del todo
+      - falla: la falla fisica activa del equipo, o None. NO viaja en el jsonl
+        (la telemetria no sabe que esta fallando): el generador la va anotando
+        aparte como verdad de terreno, y la fase 2 la cruza con un range join
+
+    usa su PROPIO rng (rng_eventos) y no el del activo. el orden de consumo del
+    rng principal es parte del contrato del dataset (ver arriba): asi, mientras
+    no haya falla ni calidad degradada, cada lectura sale igual que antes.
+    """
+
+    __slots__ = (
+        "calidad", "ruido", "falla", "_restantes_cal", "_restantes_falla",
+        "_random", "_randint", "_gauss",
+    )
+
+    P_DEGRADAR = 0.0004        # por tick: unos 2,3 episodios por dia por equipo
+    P_EMPEORAR = 0.15          # al terminar un episodio degradado, pasa a mala
+    # multiplicador del ruido propio de cada metrica segun la calidad
+    RUIDO = {"buena": 0.0, "degradada": 4.0, "mala": 20.0}
+
+    def __init__(self, rng_eventos):
+        self._random = rng_eventos.random
+        self._randint = rng_eventos.randint
+        self._gauss = rng_eventos.gauss
+        self.calidad = "buena"
+        self.ruido = 0.0
+        self.falla = None
+        self._restantes_cal = 0
+        self._restantes_falla = 0
+
+    def tick_calidad(self):
+        # buena -> degradada (entre 5 min y 1 h) -> buena, o a veces -> mala
+        if self.calidad == "buena":
+            if self._random() < self.P_DEGRADAR:
+                self.calidad = "degradada"
+                self._restantes_cal = self._randint(20, 240)
+        else:
+            self._restantes_cal -= 1
+            if self._restantes_cal <= 0:
+                if self.calidad == "degradada" and self._random() < self.P_EMPEORAR:
+                    self.calidad = "mala"
+                    self._restantes_cal = self._randint(8, 80)
+                else:
+                    self.calidad = "buena"
+        self.ruido = self.RUIDO[self.calidad]
+
+    def sortear_falla(self, p_inicio, dur_min, dur_max):
+        """True mientras dura la falla. si no hay una en curso, empieza una con
+        probabilidad p_inicio y dura entre dur_min y dur_max ticks."""
+        if self._restantes_falla > 0:
+            self._restantes_falla -= 1
+        elif self._random() < p_inicio:
+            self._restantes_falla = self._randint(dur_min, dur_max)
+        return self._restantes_falla > 0
+
+    def extra(self, sigma):
+        """ruido adicional por mala calidad; 0.0 exacto si el sensor esta bien."""
+        return self._gauss(0.0, sigma * self.ruido) if self.ruido else 0.0
+
+
+def _metadatos(sensor_id, metric, unit, alimentador):
+    """el dict de una lectura. alimentador_json va ya serializado ("..." o
+    null) porque esquema.py lo pega tal cual en la linea."""
+    return {
+        "sensor_id": sensor_id,
+        "metric": metric,
+        "value": 0.0,
+        "unit": unit,
+        "calidad_sensor": "buena",
+        "alimentador_json": f'"{alimentador}"' if alimentador else "null",
+    }
+
+
+def _estado_por_defecto(ev):
+    # si alguien construye un activo suelto (bench/), le doy un estado propio
+    # con su rng aparte, para no tocar el stream principal
+    return ev if ev is not None else EstadoSensor(random.Random(0))
+
+
 class Faja:
     """faja transportadora, la vibracion y la corriente van siguiendo a la carga.
     la vibracion de una faja sube con la carga y cae cuando se detiene el flujo, mas el amperaje del motor. a veces
@@ -54,7 +149,7 @@ class Faja:
     __slots__ = (
         "sensor_id", "rng", "carga", "carga_objetivo", "operando",
         "vibracion", "corriente", "_random", "_uniform", "_gauss",
-        "_m_vibracion", "_m_corriente", "_lecturas",
+        "_m_vibracion", "_m_corriente", "_lecturas", "ev",
     )
 
     VIB_VACIO, VIB_PLENA = 1.2, 6.5      # mm/s
@@ -62,7 +157,12 @@ class Faja:
     TAU_MARCHA = 45.0                    # cuando esta andando normal
     TAU_PARADA = 6.0                     # al parar baja rapido pero no de golpe
 
-    def __init__(self, sensor_id, rng):
+    # fase 3: desalineamiento de la faja, ~0,9 episodios por dia por faja,
+    # de 10 min a 1 h. la vibracion se dispara y la corriente sube un poco
+    P_DESALINEAMIENTO = 0.00015
+    DUR_DESALINEAMIENTO = (40, 240)
+
+    def __init__(self, sensor_id, rng, ev=None, alimentador=None):
         # el rng entra por el constructor y me lo quedo, lab1 trampa 4, cada
         # activo usa el stream de su worker y nunca el random del modulo
         self.sensor_id = sensor_id
@@ -78,19 +178,10 @@ class Faja:
 
         # lab1 3.2, metric en minusculas y en ingles, unit con la unidad fisica.
         # los tres campos fijos se escriben aqui una vez y no se vuelven a tocar
-        self._m_vibracion = {
-            "sensor_id": sensor_id,
-            "metric": "vibration",
-            "value": 0.0,
-            "unit": "mm/s",
-        }
-        self._m_corriente = {
-            "sensor_id": sensor_id,
-            "metric": "current",
-            "value": 0.0,
-            "unit": "A",
-        }
+        self._m_vibracion = _metadatos(sensor_id, "vibration", "mm/s", alimentador)
+        self._m_corriente = _metadatos(sensor_id, "current", "A", alimentador)
         self._lecturas = [self._m_vibracion, self._m_corriente]
+        self.ev = _estado_por_defecto(ev)
 
     def _actualizar_operacion(self):
         # a veces se detiene, pero le dejo mas probabilidad de arrancar de nuevo
@@ -109,12 +200,21 @@ class Faja:
         self.carga += (self.carga_objetivo - self.carga) * 0.3
 
     def tick(self, dt_s):
+        ev = self.ev
+        ev.tick_calidad()
+        desalineada = ev.sortear_falla(self.P_DESALINEAMIENTO, *self.DUR_DESALINEAMIENTO)
+        ev.falla = FALLA_DESALINEAMIENTO if desalineada else None
+
         self._actualizar_operacion()
 
         if self.operando:
             self._actualizar_carga()
             vib_obj = self.VIB_VACIO + (self.VIB_PLENA - self.VIB_VACIO) * self.carga
             cur_obj = self.CUR_VACIO + (self.CUR_PLENA - self.CUR_VACIO) * self.carga
+            if desalineada:
+                # el rodillo golpea: la vibracion se va a mas del doble
+                vib_obj = vib_obj * 2.2 + 1.5
+                cur_obj *= 1.12
             a = _alfa(dt_s, self.TAU_MARCHA)
         else:
             # detenida las dos cosas se van a cero, pero con el tau corto
@@ -129,11 +229,12 @@ class Faja:
         # primero la vibracion y despues la corriente, ese orden es el que
         # consume el stream del rng y no se puede dar vuelta
         self._m_vibracion["value"] = round(
-            max(0.0, self.vibracion + self._gauss(0.0, 0.05)), 3
+            max(0.0, self.vibracion + self._gauss(0.0, 0.05) + ev.extra(0.05)), 3
         )
         self._m_corriente["value"] = round(
-            max(0.0, self.corriente + self._gauss(0.0, 0.4)), 2
+            max(0.0, self.corriente + self._gauss(0.0, 0.4) + ev.extra(0.4)), 2
         )
+        self._m_vibracion["calidad_sensor"] = self._m_corriente["calidad_sensor"] = ev.calidad
         return self._lecturas
 
 
@@ -147,7 +248,7 @@ class Grua:
     __slots__ = (
         "sensor_id", "rng", "estado", "restantes", "peso", "corriente",
         "_randint", "_uniform", "_gauss",
-        "_m_corriente", "_m_peso", "_lecturas",
+        "_m_corriente", "_m_peso", "_lecturas", "ev",
     )
 
     # estado -> (cuantos ticks dura, corriente a la que tiende en A)
@@ -165,7 +266,12 @@ class Grua:
     }
     TAU_CORRIENTE = 10.0
 
-    def __init__(self, sensor_id, rng):
+    # fase 3: sobrecorriente del motor de izaje, ~1,2 episodios por dia por
+    # grua, de 5 a 30 min. la corriente queda 45 % sobre lo normal
+    P_SOBRECORRIENTE = 0.0002
+    DUR_SOBRECORRIENTE = (20, 120)
+
+    def __init__(self, sensor_id, rng, ev=None, alimentador=None):
         self.sensor_id = sensor_id
         self.rng = rng
         self._randint = rng.randint
@@ -176,19 +282,10 @@ class Grua:
         self.peso = 0.0
         self.corriente = self.CICLO["inactiva"][1]
 
-        self._m_corriente = {
-            "sensor_id": sensor_id,
-            "metric": "current",
-            "value": 0.0,
-            "unit": "A",
-        }
-        self._m_peso = {
-            "sensor_id": sensor_id,
-            "metric": "weight",
-            "value": 0.0,
-            "unit": "kg",
-        }
+        self._m_corriente = _metadatos(sensor_id, "current", "A", alimentador)
+        self._m_peso = _metadatos(sensor_id, "weight", "kg", alimentador)
         self._lecturas = [self._m_corriente, self._m_peso]
+        self.ev = _estado_por_defecto(ev)
 
     def _avanzar(self):
         self.restantes -= 1
@@ -207,18 +304,30 @@ class Grua:
                 self.peso = round(self._uniform(6000.0, 30000.0), 1)
 
     def tick(self, dt_s):
+        ev = self.ev
+        ev.tick_calidad()
+        sobrecorriente = ev.sortear_falla(self.P_SOBRECORRIENTE, *self.DUR_SOBRECORRIENTE)
+        ev.falla = FALLA_SOBRECORRIENTE if sobrecorriente else None
+
         self._avanzar()
 
         cur_obj = self.CICLO[self.estado][1]
+        if sobrecorriente:
+            cur_obj *= 1.45
         self.corriente += (cur_obj - self.corriente) * _alfa(dt_s, self.TAU_CORRIENTE)
 
         self._m_corriente["value"] = round(
-            max(0.0, self.corriente + self._gauss(0.0, 1.5)), 2
+            max(0.0, self.corriente + self._gauss(0.0, 1.5) + ev.extra(1.5)), 2
         )
         # el peso lo mando sin ruido, una carga colgando no le cambia el peso
         # entre una lectura y la otra. es la coherencia fisica de la serie que
-        # lab1 4.6 evalua en calidad del dataset
-        self._m_peso["value"] = self.peso
+        # lab1 4.6 evalua en calidad del dataset. solo un sensor degradado le
+        # mete ruido (fase 3), y nunca lo deja negativo
+        if ev.ruido:
+            self._m_peso["value"] = round(max(0.0, self.peso + ev.extra(5.0)), 1)
+        else:
+            self._m_peso["value"] = self.peso
+        self._m_corriente["calidad_sensor"] = self._m_peso["calidad_sensor"] = ev.calidad
         return self._lecturas
 
 
@@ -232,10 +341,10 @@ class Bascula:
 
     __slots__ = (
         "sensor_id", "rng", "peso_base", "restantes",
-        "_randint", "_uniform", "_gauss", "_m_peso", "_lecturas",
+        "_randint", "_uniform", "_gauss", "_m_peso", "_lecturas", "ev",
     )
 
-    def __init__(self, sensor_id, rng):
+    def __init__(self, sensor_id, rng, ev=None, alimentador=None):
         self.sensor_id = sensor_id
         self.rng = rng
         self._randint = rng.randint
@@ -244,18 +353,17 @@ class Bascula:
         self.peso_base = 0.0
         self.restantes = rng.randint(2, 6)
 
-        self._m_peso = {
-            "sensor_id": sensor_id,
-            "metric": "weight",
-            "value": 0.0,
-            "unit": "kg",
-        }
+        self._m_peso = _metadatos(sensor_id, "weight", "kg", alimentador)
         self._lecturas = [self._m_peso]
+        self.ev = _estado_por_defecto(ev)
 
     def tick(self, dt_s):
         # recibo dt_s aunque no lo use, aqui el estado avanza por ticks y no
         # por segundos, pero le dejo la misma firma que a los demas activos
         # asi el generador los recorre a todos igual sin preguntar que son
+        # (la bascula no tiene fallas simuladas, solo calidad del sensor)
+        ev = self.ev
+        ev.tick_calidad()
         self.restantes -= 1
         if self.restantes <= 0:
             if self.peso_base > 0.0:
@@ -270,10 +378,13 @@ class Bascula:
         if self.peso_base > 0.0:
             # solo le sumo decimas, lo que se mueve es la celda de carga y no el
             # camion, por eso el numero no me puede saltar entre ticks
-            self._m_peso["value"] = round(self.peso_base + self._gauss(0.0, 0.08), 2)
+            self._m_peso["value"] = round(
+                self.peso_base + self._gauss(0.0, 0.08) + ev.extra(0.08), 2
+            )
         else:
-            self._m_peso["value"] = round(abs(self._gauss(0.0, 0.05)), 2)
+            self._m_peso["value"] = round(abs(self._gauss(0.0, 0.05) + ev.extra(0.05)), 2)
 
+        self._m_peso["calidad_sensor"] = ev.calidad
         return self._lecturas
 
 
@@ -291,7 +402,7 @@ class Reefer:
         "sensor_id", "rng", "setpoint", "temp", "humedad", "corriente",
         "puerta_abierta", "restantes",
         "_random", "_randint", "_uniform", "_gauss",
-        "_m_temp", "_m_corriente", "_m_humedad", "_lecturas",
+        "_m_temp", "_m_corriente", "_m_humedad", "_lecturas", "ev",
     )
 
     P_ABRIR = 0.0005          # por tick, da unas 3 aperturas por dia
@@ -303,7 +414,16 @@ class Reefer:
     TAU_HUMEDAD = 40.0
     TAU_CORRIENTE = 20.0
 
-    def __init__(self, sensor_id, rng, setpoint=-18.0):
+    # fase 3: falla del compresor, ~0,17 por dia por reefer (unas 75 en el
+    # dataset), de 15 min a 1,5 h. el compresor se detiene: la corriente cae a
+    # lo que consumen los ventiladores y la temperatura deriva hacia la del aire
+    P_COMPRESOR = 0.00003
+    DUR_COMPRESOR = (60, 360)
+    CUR_SIN_COMPRESOR = 0.8   # A, solo ventiladores
+    T_AMBIENTE = 15.0         # C, hacia donde deriva sin frio
+    DERIVA_SIN_COMPRESOR = 0.0015
+
+    def __init__(self, sensor_id, rng, setpoint=-18.0, ev=None, alimentador=None):
         self.sensor_id = sensor_id
         self.rng = rng
         self._random = rng.random
@@ -317,25 +437,11 @@ class Reefer:
         self.puerta_abierta = False
         self.restantes = 0
 
-        self._m_temp = {
-            "sensor_id": sensor_id,
-            "metric": "temperature",
-            "value": 0.0,
-            "unit": "C",
-        }
-        self._m_corriente = {
-            "sensor_id": sensor_id,
-            "metric": "current",
-            "value": 0.0,
-            "unit": "A",
-        }
-        self._m_humedad = {
-            "sensor_id": sensor_id,
-            "metric": "humidity",
-            "value": 0.0,
-            "unit": "%",
-        }
+        self._m_temp = _metadatos(sensor_id, "temperature", "C", alimentador)
+        self._m_corriente = _metadatos(sensor_id, "current", "A", alimentador)
+        self._m_humedad = _metadatos(sensor_id, "humidity", "%", alimentador)
         self._lecturas = [self._m_temp, self._m_corriente, self._m_humedad]
+        self.ev = _estado_por_defecto(ev)
 
     def _actualizar_puerta(self):
         # la puerta se abre muy de vez en cuando y queda abierta unos ticks,
@@ -349,31 +455,55 @@ class Reefer:
             self.restantes = self._randint(2, 8)
 
     def tick(self, dt_s):
+        ev = self.ev
+        ev.tick_calidad()
+        sin_compresor = ev.sortear_falla(self.P_COMPRESOR, *self.DUR_COMPRESOR)
+
         self._actualizar_puerta()
+
+        # una sola falla activa por equipo a la vez, la mas grave. asi los
+        # intervalos de la verdad de terreno de un mismo equipo nunca se
+        # superponen y el range join de la fase 2 no puede duplicar filas
+        if sin_compresor:
+            ev.falla = FALLA_COMPRESOR
+        elif self.puerta_abierta:
+            ev.falla = FALLA_PUERTA
+        else:
+            ev.falla = None
 
         # temperatura igual que el ejemplo del documento
         if self.puerta_abierta:
             self.temp += 0.9 * (dt_s / 60.0)
             hum_obj = self.HUM_ABIERTA
+        elif sin_compresor:
+            # sin frio la caja se va entibiando hacia la temperatura del aire
+            self.temp += (self.T_AMBIENTE - self.temp) * self.DERIVA_SIN_COMPRESOR
+            hum_obj = self.HUM_CERRADA
         else:
             self.temp += (self.setpoint - self.temp) * 0.08
             hum_obj = self.HUM_CERRADA
 
-        # el compresor trabaja mas mientras mas lejos esta del setpoint
-        error = max(0.0, self.temp - self.setpoint)
-        cur_obj = min(self.CUR_MAX, self.CUR_BASE + self.CUR_POR_GRADO * error)
+        if sin_compresor:
+            cur_obj = self.CUR_SIN_COMPRESOR
+        else:
+            # el compresor trabaja mas mientras mas lejos esta del setpoint
+            error = max(0.0, self.temp - self.setpoint)
+            cur_obj = min(self.CUR_MAX, self.CUR_BASE + self.CUR_POR_GRADO * error)
 
         self.humedad += (hum_obj - self.humedad) * _alfa(dt_s, self.TAU_HUMEDAD)
         self.corriente += (cur_obj - self.corriente) * _alfa(dt_s, self.TAU_CORRIENTE)
 
         # orden fijo de consumo del rng: temperatura, corriente, humedad
-        self._m_temp["value"] = round(self.temp + self._gauss(0.0, 0.05), 2)
+        self._m_temp["value"] = round(self.temp + self._gauss(0.0, 0.05) + ev.extra(0.05), 2)
         self._m_corriente["value"] = round(
-            max(0.0, self.corriente + self._gauss(0.0, 0.1)), 2
+            max(0.0, self.corriente + self._gauss(0.0, 0.1) + ev.extra(0.1)), 2
         )
         self._m_humedad["value"] = round(
-            min(100.0, max(0.0, self.humedad + self._gauss(0.0, 0.3))), 1
+            min(100.0, max(0.0, self.humedad + self._gauss(0.0, 0.3) + ev.extra(0.3))), 1
         )
+        self._m_temp["calidad_sensor"] = ev.calidad
+        self._m_corriente["calidad_sensor"] = ev.calidad
+        self._m_humedad["calidad_sensor"] = ev.calidad
         return self._lecturas
 
 
@@ -391,7 +521,7 @@ class SensorAmbiental:
 
     __slots__ = (
         "sensor_id", "rng", "t_s", "deriva_t", "deriva_h", "temp", "humedad",
-        "_gauss", "_m_temp", "_m_humedad", "_lecturas",
+        "_gauss", "_m_temp", "_m_humedad", "_lecturas", "ev",
     )
 
     TEMP_MEDIA, TEMP_AMPLITUD = 15.0, 4.0     # C, clima costero de coquimbo
@@ -400,7 +530,7 @@ class SensorAmbiental:
     DIA_S = 86400.0
     TAU = 300.0                               # el aire no cambia de golpe
 
-    def __init__(self, sensor_id, rng):
+    def __init__(self, sensor_id, rng, ev=None, alimentador=None):
         self.sensor_id = sensor_id
         self.rng = rng
         self._gauss = rng.gauss
@@ -409,19 +539,10 @@ class SensorAmbiental:
         self.deriva_h = rng.uniform(-3.0, 3.0)
         self.temp, self.humedad = self._objetivo()
 
-        self._m_temp = {
-            "sensor_id": sensor_id,
-            "metric": "temperature",
-            "value": 0.0,
-            "unit": "C",
-        }
-        self._m_humedad = {
-            "sensor_id": sensor_id,
-            "metric": "humidity",
-            "value": 0.0,
-            "unit": "%",
-        }
+        self._m_temp = _metadatos(sensor_id, "temperature", "C", alimentador)
+        self._m_humedad = _metadatos(sensor_id, "humidity", "%", alimentador)
         self._lecturas = [self._m_temp, self._m_humedad]
+        self.ev = _estado_por_defecto(ev)
 
     def _objetivo(self):
         # coseno con el maximo en HORA_PEAK; la humedad va en contrafase
@@ -432,6 +553,9 @@ class SensorAmbiental:
         return temp, hum
 
     def tick(self, dt_s):
+        # los sensores de patio no tienen fallas simuladas, solo calidad
+        ev = self.ev
+        ev.tick_calidad()
         self.t_s += dt_s
 
         # la deriva camina despacio y queda acotada para que no se escape
@@ -443,10 +567,11 @@ class SensorAmbiental:
         self.temp += (temp_obj - self.temp) * a
         self.humedad += (hum_obj - self.humedad) * a
 
-        self._m_temp["value"] = round(self.temp + self._gauss(0.0, 0.05), 2)
+        self._m_temp["value"] = round(self.temp + self._gauss(0.0, 0.05) + ev.extra(0.05), 2)
         self._m_humedad["value"] = round(
-            min(100.0, max(0.0, self.humedad + self._gauss(0.0, 0.3))), 1
+            min(100.0, max(0.0, self.humedad + self._gauss(0.0, 0.3) + ev.extra(0.3))), 1
         )
+        self._m_temp["calidad_sensor"] = self._m_humedad["calidad_sensor"] = ev.calidad
         return self._lecturas
 
 
@@ -466,25 +591,31 @@ def _inventario():
     de los 48 reefers, 1 de cada 4 va con setpoint de +4 C (carga refrigerada,
     fruta) y el resto con -18 C (congelado).
 
+    fase 3: la quinta posicion es el alimentador electrico. solo los reefers
+    cuelgan de la red del terminal (3 alimentadores de 16 reefers cada uno);
+    el resto no tiene alimentador y sale null en el jsonl. ese null es
+    estructural ("no aplica"), no un dato perdido.
+
     el orden no es libre: define la posicion global de cada punto de medicion
     dentro del tick, y con eso donde se corta el ultimo tick (ver
     generador.iter_eventos) y el orden en que se consume el rng.
     """
-    inv = [(Faja, f"FAJA_S3_C{i}", (), 2) for i in range(1, 7)]
-    inv.append((Grua, "GRUA_S3_STS01", (), 2))
-    inv.append((Grua, "GRUA_S3_STS02", (), 2))
-    inv.append((Bascula, "BASCULA_S3_01", (), 1))
+    inv = [(Faja, f"FAJA_S3_C{i}", (), 2, None) for i in range(1, 7)]
+    inv.append((Grua, "GRUA_S3_STS01", (), 2, None))
+    inv.append((Grua, "GRUA_S3_STS02", (), 2, None))
+    inv.append((Bascula, "BASCULA_S3_01", (), 1, None))
     for i in range(1, 49):
         setpoint = 4.0 if i % 4 == 0 else -18.0
-        inv.append((Reefer, f"REEFER_S3_{i:02d}", (setpoint,), 3))
+        alimentador = f"ALIM_S3_R{(i - 1) // 16 + 1}"
+        inv.append((Reefer, f"REEFER_S3_{i:02d}", (setpoint,), 3, alimentador))
     for i in range(1, 13):
-        inv.append((SensorAmbiental, f"AMB_S3_{i:02d}", (), 2))
+        inv.append((SensorAmbiental, f"AMB_S3_{i:02d}", (), 2, None))
     return inv
 
 
 def puntos_por_tick():
     """cuantos eventos produce el sitio completo en un tick, hoy 185."""
-    return sum(p for _, _, _, p in _inventario())
+    return sum(p for _, _, _, p, _ in _inventario())
 
 
 def _validar_reparto(worker_id, n_workers):
@@ -506,7 +637,7 @@ def primeros_puntos(worker_id, n_workers=1):
     _validar_reparto(worker_id, n_workers)
     posiciones = []
     acumulado = 0
-    for i, (_, _, _, p) in enumerate(_inventario()):
+    for i, (_, _, _, p, _) in enumerate(_inventario()):
         if n_workers == 1 or i % n_workers == worker_id:
             posiciones.append(acumulado)
         acumulado += p
@@ -535,13 +666,20 @@ def crear_activos(semilla, worker_id, n_workers=1):
     el orden de construccion tampoco es libre: cada constructor consume
     numeros del rng, asi que si se reordena el inventario el stream se corre y
     el dataset cambia entero aunque la semilla sea la misma.
+
+    fase 3: las fallas y la calidad del sensor salen de un segundo rng,
+    rng_eventos, tambien propio del worker. va aparte para no correr el stream
+    principal: sin falla ni calidad degradada, cada lectura sale igual que antes.
     """
     _validar_reparto(worker_id, n_workers)
     rng = random.Random(semilla + worker_id)
+    rng_eventos = random.Random((semilla + worker_id) * 1_000_003 + 17)
     activos = []
-    for i, (clase, sid, extra, puntos) in enumerate(_inventario()):
+    for i, (clase, sid, extra, puntos, alimentador) in enumerate(_inventario()):
         if n_workers == 1 or i % n_workers == worker_id:
-            activo = clase(sid, rng, *extra)
+            activo = clase(
+                sid, rng, *extra, ev=EstadoSensor(rng_eventos), alimentador=alimentador
+            )
             # si una clase cambia sus metricas y no se actualiza el inventario,
             # prefiero que reviente aqui y no que el corte del tick quede mal
             assert len(activo._lecturas) == puntos, sid
